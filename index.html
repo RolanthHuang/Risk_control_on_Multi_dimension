@@ -1,0 +1,2772 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Policy lab</title>
+<meta name="description" content="Wanted / Unwanted policy lab: one wanted score and three risk layers. Tune weights and caps, watch the fetched candidate move, see why every other candidate lost, and test how stable a policy is across drifting rounds.">
+<meta property="og:title" content="Wanted / Unwanted policy lab">
+<meta property="og:description" content="One wanted score, three kinds of risk. The weights and caps decide who gets fetched.">
+<meta property="og:image" content="https://rolanthhuang.github.io/Risk_control_on_Multi_dimension/preview-light.png">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#e9eef2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121a23" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='11' width='24' height='2' rx='1' fill='%2316202a'/%3E%3Crect x='4' y='18' width='24' height='1.5' rx='.75' fill='%2316202a' opacity='.6'/%3E%3Crect x='4' y='24' width='24' height='1.5' rx='.75' fill='%2316202a' opacity='.45'/%3E%3Crect x='9' y='3' width='6' height='8' rx='2' fill='%23d21f45'/%3E%3Crect x='18' y='5' width='6' height='6' rx='2' fill='%23cc9f1a'/%3E%3Crect x='9' y='13' width='6' height='3' rx='1.5' fill='%23d21f45' opacity='.6'/%3E%3Crect x='18' y='19.5' width='6' height='3' rx='1.5' fill='%23cc9f1a' opacity='.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --bg-top: #eef2f5;
+  --bg-bottom: #c4ced8;
+  --ink: #16202a;
+  --ink-2: #47545f;
+  --ink-3: #6f7b87;
+  --panel: rgba(247, 250, 252, 0.78);
+  --panel-solid: #f7fafc;
+  --line: rgba(22, 32, 42, 0.11);
+  --line-strong: rgba(22, 32, 42, 0.22);
+  --chip: rgba(22, 32, 42, 0.065);
+  --chip-hover: rgba(22, 32, 42, 0.1);
+  --on-ink: #f4f7f9;
+  --fetch: #d21f45;
+  --pass: #cc9f1a;
+  --other: #30a08c;
+  --blocked: #8e98a2;
+  --cap-a: #26313c;
+  --cap-b: #b3bcc4;
+  --focus: #16202a;
+  --shadow: 0 18px 40px -24px rgba(17, 31, 46, 0.45);
+  --font: "Archivo", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg-top: #1a2431;
+    --bg-bottom: #0a0f15;
+    --ink: #e6ecf1;
+    --ink-2: #a9b5c0;
+    --ink-3: #7f8c98;
+    --panel: rgba(19, 27, 37, 0.76);
+    --panel-solid: #16202b;
+    --line: rgba(230, 236, 241, 0.1);
+    --line-strong: rgba(230, 236, 241, 0.22);
+    --chip: rgba(230, 236, 241, 0.07);
+    --chip-hover: rgba(230, 236, 241, 0.12);
+    --on-ink: #101820;
+    --fetch: #ef4f6c;
+    --pass: #b5891a;
+    --other: #0f9a80;
+    --blocked: #66727e;
+    --cap-a: #0e141a;
+    --cap-b: #7d8994;
+    --focus: #e6ecf1;
+    --shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-top: #1a2431;
+  --bg-bottom: #0a0f15;
+  --ink: #e6ecf1;
+  --ink-2: #a9b5c0;
+  --ink-3: #7f8c98;
+  --panel: rgba(19, 27, 37, 0.76);
+  --panel-solid: #16202b;
+  --line: rgba(230, 236, 241, 0.1);
+  --line-strong: rgba(230, 236, 241, 0.22);
+  --chip: rgba(230, 236, 241, 0.07);
+  --chip-hover: rgba(230, 236, 241, 0.12);
+  --on-ink: #101820;
+  --fetch: #ef4f6c;
+  --pass: #b5891a;
+  --other: #0f9a80;
+  --blocked: #66727e;
+  --cap-a: #0e141a;
+  --cap-b: #7d8994;
+  --focus: #e6ecf1;
+  --shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#scene:active { cursor: grabbing; }
+#scene.is-hovering { cursor: pointer; }
+
+/* ---------- overlay layout ---------- */
+.hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  display: grid;
+  grid-template-columns: 318px minmax(0, 1fr) 338px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "intro . tools"
+    "policy . analysis"
+    "policy rounds analysis";
+  gap: 14px 22px;
+  padding: max(22px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(28px, env(safe-area-inset-left));
+}
+.hud > *, .sheet > * { pointer-events: auto; min-width: 0; }
+.sheet { display: contents; }
+.tabs { display: none; }
+
+.panel {
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.panel-title { margin: 0; font-size: 12.5px; font-weight: 560; color: var(--ink-3); letter-spacing: 0.01em; }
+.rule { height: 1px; background: var(--line); margin: 14px 0; }
+
+/* ---------- intro ---------- */
+.intro { grid-area: intro; pointer-events: none; }
+.intro a, .intro details { pointer-events: auto; }
+.intro h1 {
+  margin: 0;
+  font-size: 29px;
+  line-height: 1.04;
+  font-weight: 720;
+  font-stretch: 122%;
+  letter-spacing: -0.012em;
+}
+.lede { margin: 8px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); max-width: 30em; }
+html[lang="zh-Hant"] .lede { max-width: 21em; }
+html[lang="zh-Hant"] .lede, html[lang="zh-Hant"] .how li, html[lang="zh-Hant"] .reason p, html[lang="zh-Hant"] .stability, html[lang="zh-Hant"] .hint { word-break: keep-all; overflow-wrap: anywhere; }
+.intro-links { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; font-size: 13.5px; }
+.how summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 600;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+}
+.how summary::-webkit-details-marker { display: none; }
+.how summary::before {
+  content: "";
+  width: 7px; height: 7px;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 160ms ease;
+  margin-right: 2px;
+}
+.how[open] summary::before { transform: rotate(45deg) translate(-1px, -1px); }
+.how-body { position: absolute; z-index: 6; margin-top: 8px; padding: 12px 16px 12px 14px; width: min(380px, calc(100vw - 32px)); color: var(--ink-2); font-size: 13.5px; }
+.how ol { margin: 0; padding-left: 1.35em; }
+.how li { margin: 0 0 6px; padding-left: 2px; }
+.how li::marker { color: var(--ink-3); }
+.how b { color: var(--ink); font-weight: 650; }
+.how p { margin: 8px 0 0; font-size: 12.5px; color: var(--ink-3); }
+.src-link { color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; border-radius: 4px; }
+.src-link:hover { color: var(--ink); text-decoration-color: currentColor; }
+
+/* ---------- controls ---------- */
+.tools { grid-area: tools; justify-self: end; align-self: start; display: flex; gap: 8px; align-items: center; }
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--chip); }
+.seg button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  font-weight: 560;
+  line-height: 1;
+  padding: 8px 11px;
+  min-height: 32px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  position: relative;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.seg button:hover { color: var(--ink); background: var(--chip-hover); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+.seg button .orig { position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: currentColor; opacity: 0.55; }
+.tools .seg { background: var(--panel); border: 1px solid var(--line); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.icon-btn {
+  appearance: none;
+  width: 40px; height: 40px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--ink);
+  cursor: pointer;
+  flex: none;
+}
+.icon-btn:hover { background: var(--panel-solid); }
+.icon-btn svg { width: 18px; height: 18px; }
+.btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  border-radius: 999px;
+  padding: 7px 13px 7px 11px;
+  min-height: 34px;
+  font-size: 13.5px;
+  font-weight: 560;
+  cursor: pointer;
+  color: var(--ink);
+}
+.btn:hover { background: var(--chip); }
+.btn svg { width: 16px; height: 16px; flex: none; }
+
+/* ---------- policy panel ---------- */
+.policy { grid-area: policy; align-self: start; max-height: 100%; overflow: auto; padding: 16px 16px 14px; scrollbar-width: thin; }
+.presets { margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.presets button {
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  border-radius: 12px;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1.25;
+}
+.presets button:hover { background: var(--chip); }
+.presets button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.hint { margin: 8px 0 0; font-size: 12.5px; color: var(--ink-3); min-height: 1.5em; }
+.layer { padding: 12px 0 2px; border-top: 1px solid var(--line); margin-top: 12px; }
+.layer:first-of-type { margin-top: 14px; }
+.layer-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.layer-name { font-weight: 650; font-size: 14px; }
+.layer-state { font-size: 12.5px; color: var(--ink-3); }
+.layer.is-muted .layer-name { color: var(--ink-3); }
+.slider { display: grid; grid-template-columns: 4.2em minmax(0, 1fr) 3.2em; align-items: center; gap: 8px; margin-top: 6px; font-size: 13px; color: var(--ink-2); }
+html[lang="zh-Hant"] .slider { grid-template-columns: 2.6em minmax(0, 1fr) 3.2em; }
+.slider output { text-align: right; color: var(--ink); font-weight: 620; font-variant-numeric: tabular-nums; }
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--ink) var(--fill, 50%), var(--chip-hover) var(--fill, 50%)); }
+input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--chip-hover); }
+input[type="range"]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--ink); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: var(--panel-solid); border: 2px solid var(--ink); }
+input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--panel-solid); border: 2px solid var(--ink); }
+input[type="range"]:focus-visible { outline: none; }
+input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--panel-solid), 0 0 0 5px var(--focus); }
+input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--panel-solid), 0 0 0 5px var(--focus); }
+.pool-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.pool .seg button { padding: 8px 9px; }
+.source { margin: 8px 0 0; font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* ---------- analysis panel ---------- */
+.analysis { grid-area: analysis; align-self: start; max-height: 100%; overflow: auto; padding: 16px 16px 14px; scrollbar-width: thin; }
+.readout-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.fetch-id { margin: 2px 0 0; display: flex; align-items: center; gap: 10px; font-size: 40px; line-height: 1.05; font-weight: 700; font-stretch: 112%; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.fetch-id .key { width: 12px; height: 26px; border-radius: 4px; }
+.fetch-id.is-none { font-size: 22px; font-stretch: 100%; color: var(--ink-2); }
+.fetch-id.is-none .key { background: var(--blocked); }
+.mini-stats { margin: 0; display: grid; gap: 2px; text-align: right; font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.mini-stats b { color: var(--ink); font-weight: 650; font-size: 14px; }
+.mini-stats dd { margin: 0; }
+.plane { margin: 14px 0 0; }
+.plane-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.plane-head h3 { margin: 0; font-size: 13.5px; font-weight: 650; }
+.plane-head span { font-size: 12px; color: var(--ink-3); }
+#planeSvg { display: block; width: 100%; height: auto; margin-top: 6px; overflow: visible; }
+.plane-key { display: grid; gap: 3px; margin-top: 6px; font-size: 12px; color: var(--ink-2); }
+.plane-key > span { display: flex; align-items: center; gap: 8px; }
+.plane-key svg { width: 16px; height: 12px; flex: none; overflow: visible; }
+.plane-key .k-star { fill: var(--ink); }
+.plane-key .k-arc { fill: none; stroke: var(--fetch); stroke-width: 1.4; stroke-dasharray: 3 2.5; }
+.plane-key .k-front { fill: none; stroke: var(--ink-2); stroke-width: 1.3; }
+.plane .axis { stroke: var(--line-strong); stroke-width: 1; }
+.plane .grid { stroke: var(--line); stroke-width: 1; }
+.plane .tick { fill: var(--ink-3); font-size: 10px; font-variant-numeric: tabular-nums; }
+.plane .axis-label { fill: var(--ink-2); font-size: 10.5px; }
+.plane .arc { fill: none; stroke: var(--fetch); stroke-width: 1.4; stroke-dasharray: 4 4; opacity: 0.9; }
+.plane .arc-fill { fill: var(--fetch); opacity: 0.06; }
+.plane .frontier { fill: none; stroke: var(--ink-2); stroke-width: 1.3; stroke-linejoin: round; opacity: 0.7; }
+.plane .ideal { fill: var(--ink); }
+.plane .pt { transition: transform 360ms cubic-bezier(.2,.7,.2,1); cursor: pointer; }
+.plane .pt circle.hit { fill: transparent; }
+.plane .pt .dot { stroke: var(--panel-solid); stroke-width: 1.5; }
+.plane .pt.s2 .dot { fill: var(--pass); }
+.plane .pt.s3 .dot { fill: var(--fetch); }
+.plane .pt.s3 .halo { fill: none; stroke: var(--fetch); stroke-width: 1.5; opacity: 0.5; }
+.plane .pt.s1 .cross { stroke: var(--blocked); stroke-width: 2; stroke-linecap: round; }
+.plane .pt.is-off { opacity: 0.45; }
+.plane .pt.is-hover .dot, .plane .pt.is-selected .dot { stroke: var(--ink); stroke-width: 2; }
+.plane .pt.is-selected .ring { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.plane .pt-label { fill: var(--ink); font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.reason { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.reason-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.reason h3 { margin: 0; font-size: 14px; font-weight: 650; display: flex; align-items: center; gap: 8px; }
+.reason h3 .key { width: 10px; height: 10px; border-radius: 3px; }
+.reason p { margin: 6px 0 0; font-size: 13px; color: var(--ink-2); }
+.reason p b { color: var(--ink); font-weight: 650; }
+.text-btn { appearance: none; border: 0; background: none; padding: 0; font-size: 12.5px; font-weight: 600; color: var(--ink); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; border-radius: 4px; white-space: nowrap; }
+.text-btn:hover { text-decoration-color: currentColor; }
+.terms { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.terms th, .terms td { padding: 4px 0 4px 12px; text-align: right; }
+.terms th:first-child, .terms td:first-child { text-align: left; color: var(--ink-2); font-weight: 400; padding-left: 0; }
+.terms thead th { color: var(--ink-3); font-weight: 560; border-bottom: 1px solid var(--line); }
+.terms tbody td { border-bottom: 1px solid var(--line); }
+.terms tfoot td { font-weight: 650; color: var(--ink); padding-top: 6px; }
+.terms .bar-cell { width: 34%; padding-left: 10px; }
+.terms .bars { display: grid; gap: 2px; }
+.terms .bars i { display: block; height: 4px; border-radius: 2px; min-width: 1px; }
+.terms .bars .b-sel { background: var(--ink-2); }
+.terms .bars .b-fetch { background: var(--fetch); opacity: 0.8; }
+.terms td.is-zero { color: var(--ink-3); }
+.repro { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.repro p { margin: 0 0 6px; font-size: 12.5px; color: var(--ink-3); }
+.code-row { display: flex; align-items: stretch; gap: 6px; }
+.code-row code { flex: 1; min-width: 0; font-family: var(--mono); font-size: 11.5px; line-height: 1.45; padding: 7px 9px; border-radius: 8px; background: var(--chip); color: var(--ink-2); overflow-wrap: anywhere; }
+.code-row button { appearance: none; border: 1px solid var(--line-strong); background: transparent; border-radius: 8px; padding: 0 10px; font-size: 12.5px; font-weight: 600; cursor: pointer; color: var(--ink); }
+.code-row button:hover { background: var(--chip); }
+.legend { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; font-size: 12.5px; color: var(--ink-2); }
+.legend li { display: flex; align-items: center; gap: 8px; }
+.key { display: inline-block; flex: none; width: 12px; height: 10px; border-radius: 3px; }
+.key-fetch { background: var(--fetch); }
+.key-pass { background: var(--pass); }
+.key-other { background: var(--other); }
+.key-blocked { background: var(--blocked); }
+.key-over { background: repeating-linear-gradient(135deg, var(--cap-a) 0 3px, var(--cap-b) 3px 6px); }
+.key-ideal { width: 10px; height: 10px; border-radius: 0; background: var(--ink); clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+
+/* ---------- rounds ---------- */
+.rounds { grid-area: rounds; align-self: end; justify-self: center; width: min(660px, 100%); padding: 10px 14px 10px; }
+.rounds-head { display: flex; align-items: center; gap: 12px; }
+.rounds-head .icon-btn { width: 36px; height: 36px; background: transparent; border-color: var(--line-strong); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.rounds-head .icon-btn[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.rounds-title { font-size: 13.5px; font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rounds-title span { color: var(--ink-3); font-weight: 500; margin-left: 6px; }
+.rounds-head .slider { margin: 0 0 0 auto; width: min(240px, 46%); grid-template-columns: auto minmax(60px, 1fr) 2.2em; }
+.strip { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; }
+.strip button {
+  appearance: none;
+  width: 100%;
+  border: 1px solid transparent;
+  background: var(--chip);
+  border-radius: 8px;
+  padding: 4px 0 5px;
+  cursor: pointer;
+  display: grid;
+  gap: 1px;
+  font-variant-numeric: tabular-nums;
+  position: relative;
+}
+.strip button:hover { background: var(--chip-hover); }
+.strip .r-num { font-size: 10.5px; color: var(--ink-3); }
+.strip .r-fetch { font-size: 12.5px; font-weight: 650; }
+.strip button.is-change::after { content: ""; position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--fetch); }
+.strip button.is-none .r-fetch { color: var(--ink-3); }
+.strip button[aria-current="true"] { background: var(--ink); border-color: var(--ink); }
+.strip button[aria-current="true"] .r-num, .strip button[aria-current="true"] .r-fetch { color: var(--on-ink); }
+.stability { margin: 7px 0 0; font-size: 12.5px; color: var(--ink-2); }
+.stability b { color: var(--ink); font-weight: 650; }
+
+/* ---------- scene labels ---------- */
+.tags { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+.tag {
+  position: absolute;
+  left: 0; top: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  font-size: 12.5px;
+  font-weight: 620;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  transition: opacity 240ms ease;
+  will-change: transform;
+}
+.tag.is-shown { opacity: 1; }
+.tag .key { width: 8px; height: 8px; border-radius: 50%; }
+.tag-thr, .tag-layer { font-weight: 560; color: var(--ink-2); }
+.tag-thr .key { width: 12px; height: 2px; border-radius: 1px; }
+.tag-layer .key { width: 12px; height: 2px; border-radius: 1px; background: var(--ink-3); }
+.tag-layer.is-muted { opacity: 0; }
+.tag-layer.is-muted.is-shown { opacity: 0.55; }
+
+.tooltip {
+  position: fixed;
+  left: 0; top: 0;
+  z-index: 8;
+  pointer-events: none;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 9px 11px 10px;
+  border-radius: 12px;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.tooltip[hidden] { display: none; }
+.tt-title { display: flex; align-items: center; gap: 8px; font-weight: 650; }
+.tt-grid { margin-top: 4px; display: grid; grid-template-columns: auto auto; gap: 1px 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.tt-grid b { color: var(--ink); font-weight: 650; text-align: right; }
+.tt-note { margin-top: 4px; color: var(--ink-3); font-size: 12.5px; }
+
+.scene-error { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(440px, calc(100% - 32px)); margin: 0; padding: 16px 18px; font-size: 14px; color: var(--ink-2); z-index: 9; }
+.scene-error[hidden] { display: none; }
+
+/* ---------- compact layout: phones, small windows, tablets held upright ---------- */
+@media (max-width: 1099px), (max-aspect-ratio: 4/5) {
+  .hud {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "intro"
+      "."
+      "sheet";
+    gap: 8px;
+    padding: max(14px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  }
+  .tools { position: fixed; z-index: 7; top: max(14px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); gap: 6px; }
+  .intro h1 { font-size: 23px; font-stretch: 115%; margin-right: 140px; min-height: 38px; display: flex; align-items: center; }
+  .lede { font-size: 13.5px; margin-top: 4px; max-width: 40em; }
+  .tools .seg button { padding: 7px 9px; min-height: 30px; font-size: 12.5px; }
+  .icon-btn { width: 36px; height: 36px; }
+  .sheet {
+    grid-area: sheet;
+    display: flex;
+    flex-direction: column;
+    max-height: 52dvh;
+    width: min(620px, 100%);
+    justify-self: center;
+    overflow: hidden;
+  }
+  .tabs { display: flex; gap: 2px; padding: 3px; margin: 0 0 6px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); flex: none; }
+  .tabs button { flex: 1; appearance: none; border: 0; background: transparent; border-radius: 999px; padding: 8px 6px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--ink); color: var(--on-ink); }
+  .sheet > .panel { display: none; max-height: none; min-height: 0; overflow: auto; width: 100%; justify-self: stretch; align-self: stretch; }
+  .sheet > .panel.is-active { display: block; flex: 1 1 auto; }
+  .rounds { padding: 12px 14px; }
+  .tag { font-size: 11.5px; padding: 3px 8px 3px 7px; gap: 6px; }
+  .fetch-id { font-size: 32px; }
+  #planeSvg { max-width: 360px; margin-inline: auto; }
+}
+@media (max-width: 1099px) and (max-height: 700px), (max-aspect-ratio: 4/5) and (max-height: 700px) {
+  .lede { display: none; }
+  .sheet { max-height: 50dvh; }
+}
+@media (max-width: 420px) {
+  .intro h1 { font-size: 20px; font-stretch: 104%; margin-right: 124px; }
+  .lede { font-size: 13px; }
+  .tools .seg button { padding: 6px 7px; }
+  .icon-btn { width: 32px; height: 32px; }
+  .strip { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .rounds-head { flex-wrap: wrap; }
+  .rounds-head .slider { width: 100%; margin: 4px 0 0; }
+}
+@media (max-height: 820px) and (min-width: 1100px) and (min-aspect-ratio: 4/5) {
+  .policy, .analysis { padding: 13px 14px 12px; }
+  .fetch-id { font-size: 34px; }
+  .layer { padding-top: 9px; margin-top: 9px; }
+  .plane { margin-top: 10px; }
+  .reason { margin-top: 10px; padding-top: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<canvas id="scene" tabindex="0" role="img" aria-label="3D chart of candidates and risk layers"></canvas>
+<div class="tags" aria-hidden="true">
+  <div class="tag tag-fetch" id="tagFetch"><span class="key key-fetch"></span><span></span></div>
+  <div class="tag tag-thr" id="tagThr"><span class="key key-pass"></span><span></span></div>
+  <div class="tag tag-layer" id="tagLayer0"><span class="key"></span><span></span></div>
+  <div class="tag tag-layer" id="tagLayer1"><span class="key"></span><span></span></div>
+  <div class="tag tag-layer" id="tagLayer2"><span class="key"></span><span></span></div>
+</div>
+
+<div class="hud">
+  <header class="intro">
+    <h1 data-i18n="title"></h1>
+    <p class="lede" data-i18n="lede"></p>
+    <div class="intro-links">
+      <details class="how" id="how">
+        <summary data-i18n="howSummary"></summary>
+        <div class="how-body panel">
+          <ol>
+            <li data-i18n-html="step1"></li>
+            <li data-i18n-html="step2"></li>
+            <li data-i18n-html="step3"></li>
+          </ol>
+          <p data-i18n="pythonNote"></p>
+          <p><a class="src-link" href="https://github.com/RolanthHuang/Risk_control_on_Multi_dimension" data-i18n="source"></a></p>
+        </div>
+      </details>
+      <a class="src-link" id="classicLink" href="https://rolanthhuang.github.io/Multi-dimensional-choices/" data-i18n="classic"></a>
+    </div>
+  </header>
+
+  <div class="tools">
+    <div class="seg" role="group" id="langSeg" data-i18n-aria="langLabel">
+      <button type="button" data-lang="zh" lang="zh-Hant">中文</button>
+      <button type="button" data-lang="en" lang="en">EN</button>
+    </div>
+    <button type="button" class="icon-btn" id="themeBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none"/></svg>
+    </button>
+  </div>
+
+  <div class="sheet" id="sheet">
+    <nav class="tabs" role="tablist" id="tabs" data-i18n-aria="panelsLabel">
+      <button type="button" role="tab" data-tab="analysis" id="tab-analysis" aria-controls="analysisPanel" data-i18n="tabResult"></button>
+      <button type="button" role="tab" data-tab="policy" id="tab-policy" aria-controls="policyPanel" data-i18n="tabPolicy"></button>
+      <button type="button" role="tab" data-tab="rounds" id="tab-rounds" aria-controls="roundsPanel" data-i18n="tabRounds"></button>
+    </nav>
+
+    <section class="panel policy" id="policyPanel" data-tab="policy" aria-labelledby="policyTitle">
+      <h2 class="panel-title" id="policyTitle" data-i18n="policyTitle"></h2>
+      <div class="presets" role="group" aria-labelledby="policyTitle" id="presetGroup">
+        <button type="button" data-preset="original" data-i18n="presetOriginal"></button>
+        <button type="button" data-preset="balanced" data-i18n="presetBalanced"></button>
+        <button type="button" data-preset="averse" data-i18n="presetAverse"></button>
+        <button type="button" data-preset="growth" data-i18n="presetGrowth"></button>
+      </div>
+      <p class="hint" id="presetHint" aria-live="polite"></p>
+      <div id="layerControls"></div>
+      <div class="rule"></div>
+      <div class="pool">
+        <h2 class="panel-title" id="countLabel" data-i18n="candidates"></h2>
+        <div class="pool-row">
+          <div class="seg" role="group" aria-labelledby="countLabel" id="countSeg"></div>
+        </div>
+        <div class="pool-row">
+          <button type="button" class="btn" id="shuffleBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h3.5c2.2 0 3.6 1.1 4.8 3l1.4 2c1.2 1.9 2.6 3 4.8 3H21"/><path d="M18 12l3 3-3 3"/><path d="M3 17h3.5c1.5 0 2.6-.5 3.5-1.4"/><path d="M14 8.4c.9-.9 2-1.4 3.5-1.4H21"/><path d="M18 4l3 3-3 3"/></svg>
+            <span data-i18n="shuffle"></span>
+          </button>
+        </div>
+        <p class="source" id="sourceLine" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="panel analysis" id="analysisPanel" data-tab="analysis" aria-labelledby="fetchedTitle">
+      <div class="readout-head">
+        <div>
+          <h2 class="panel-title" id="fetchedTitle" data-i18n="fetched"></h2>
+          <p class="fetch-id" id="fetchLine"><span class="key key-fetch" aria-hidden="true"></span><span id="fetchId">—</span></p>
+        </div>
+        <dl class="mini-stats">
+          <div><dt class="sr-only" data-i18n="distance"></dt><dd id="statDistance"></dd></div>
+          <div><dt class="sr-only" data-i18n="survivors"></dt><dd id="statSurvivors"></dd></div>
+        </dl>
+      </div>
+      <figure class="plane" id="plane">
+        <div class="plane-head"><h3 data-i18n="planeTitle"></h3><span id="planeNote"></span></div>
+        <svg id="planeSvg" viewBox="0 0 300 286" role="img"></svg>
+        <figcaption class="plane-key">
+          <span><svg viewBox="0 0 12 12" aria-hidden="true"><path class="k-star" d="M6 0.6l1.4 3.6 3.9.2-3 2.5 1 3.8L6 8.6 2.7 10.7l1-3.8-3-2.5 3.9-.2z"/></svg><span data-i18n="keyIdeal"></span></span>
+          <span><svg viewBox="0 0 16 12" aria-hidden="true"><path class="k-arc" d="M1 11 A10 10 0 0 1 11 1"/></svg><span data-i18n="keyArc"></span></span>
+          <span><svg viewBox="0 0 16 12" aria-hidden="true"><path class="k-front" d="M2 1 V5 H8 V9 H15"/></svg><span data-i18n="keyFront"></span></span>
+        </figcaption>
+      </figure>
+      <div class="reason" id="reason" aria-live="polite">
+        <div class="reason-head"><h3 id="reasonTitle"></h3><button type="button" class="text-btn" id="reasonClear" hidden data-i18n="backToFetch"></button></div>
+        <p id="reasonText"></p>
+        <table class="terms" id="terms">
+          <thead><tr><th scope="col" data-i18n="termHead"></th><th scope="col" id="termColSel"></th><th scope="col" id="termColFetch"></th><th scope="col" class="bar-cell"><span class="sr-only" data-i18n="termBars"></span></th></tr></thead>
+          <tbody id="termsBody"></tbody>
+          <tfoot><tr><td data-i18n="termTotal"></td><td id="termTotalSel"></td><td id="termTotalFetch"></td><td></td></tr></tfoot>
+        </table>
+        <p id="reasonNote"></p>
+      </div>
+      <div class="repro">
+        <p data-i18n="repro"></p>
+        <div class="code-row"><code id="pyCmd"></code><button type="button" id="copyBtn" data-i18n="copy"></button></div>
+      </div>
+      <ul class="legend">
+        <li><span class="key key-fetch"></span><span data-i18n="legendFetch"></span></li>
+        <li><span class="key key-pass"></span><span data-i18n="legendSurvivor"></span></li>
+        <li><span class="key key-blocked"></span><span data-i18n="legendBlocked"></span></li>
+        <li><span class="key key-other"></span><span data-i18n="legendBelow"></span></li>
+        <li><span class="key key-over"></span><span data-i18n="legendOver"></span></li>
+      </ul>
+    </section>
+
+    <section class="panel rounds" id="roundsPanel" data-tab="rounds" aria-labelledby="roundsTitle">
+      <div class="rounds-head">
+        <button type="button" class="icon-btn" id="playBtn" aria-pressed="false">
+          <svg class="i-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>
+          <svg class="i-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="display:none"><rect x="6.5" y="5.5" width="4" height="13" rx="1"/><rect x="13.5" y="5.5" width="4" height="13" rx="1"/></svg>
+        </button>
+        <div class="rounds-title" id="roundsTitle"><span data-i18n="rounds"></span><span id="roundLabel"></span></div>
+        <label class="slider"><span data-i18n="volatility"></span><input type="range" id="volInput" min="0" max="10" step="0.5"><output id="volOut"></output></label>
+      </div>
+      <ol class="strip" id="roundStrip"></ol>
+      <p class="stability" id="stability" aria-live="polite"></p>
+    </section>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+<p class="scene-error panel" id="sceneError" role="alert" hidden></p>
+
+<script type="module">
+// ===================================================================
+// Strings
+// ===================================================================
+const STRINGS = {
+  en: {
+    title: 'Policy lab',
+    lede: 'One wanted score, three kinds of risk. The weights and caps decide who gets fetched.',
+    howSummary: 'How the pick is made',
+    step1: '<b>Wanted stage.</b> Keep candidates at or above the high-group mean of wanted, exactly as in the classic view.',
+    step2: '<b>Cap stage.</b> Anyone over the cap on any risk layer is blocked. The striped part of a bar is the amount over the cap.',
+    step3: '<b>Distance stage.</b> Among the rest, fetch the smallest (max wanted − wanted)² + Σ weight × risk². Ties go to the seeded draw.',
+    pythonNote: 'risk_lab.py in the repo reproduces every number on this page. In round 1, the original rule gives the same fetch as the classic two-layer view.',
+    source: 'Source and Python reference on GitHub',
+    repro: 'Same result in Python',
+    copy: 'Copy',
+    copied: 'Copied',
+    docTitle: 'Wanted / Unwanted policy lab',
+    classic: 'Classic two-layer view',
+    langLabel: 'Language',
+    themeToDark: 'Switch to dark theme',
+    themeToLight: 'Switch to light theme',
+    panelsLabel: 'Panels',
+    tabResult: 'Result',
+    tabPolicy: 'Policy',
+    tabRounds: 'Rounds',
+    policyTitle: 'Policy',
+    presetOriginal: 'Original rule',
+    presetBalanced: 'Balanced',
+    presetAverse: 'Risk-averse',
+    presetGrowth: 'Growth-first',
+    hintOriginal: 'Only fraud counts, as in the classic view.',
+    hintBalanced: 'Every layer counts; serious compliance flags are blocked.',
+    hintAverse: 'Heavy weights and tight caps on every layer.',
+    hintGrowth: 'Light weights so wanted dominates; only extreme compliance is blocked.',
+    hintCustom: 'Custom policy. Pick a preset to compare.',
+    layerFraud: 'Fraud risk',
+    layerCredit: 'Credit risk',
+    layerCompliance: 'Compliance risk',
+    shortFraud: 'Fraud',
+    shortCredit: 'Credit',
+    shortCompliance: 'Compliance',
+    weight: 'Weight',
+    cap: 'Cap',
+    capNone: 'none',
+    stateCounted: 'counted',
+    stateCapOnly: 'cap only',
+    stateIgnored: 'ignored',
+    candidates: 'Candidates',
+    originalDemo: 'Data of the original wanted-unwanted-demo.html',
+    originalInteractive: 'Data of the original wanted-unwanted-interactive.html',
+    shuffle: 'New random set',
+    srcDemo: 'Original demo set, seed {s}',
+    srcInteractive: 'Original interactive set, seed {s}',
+    srcSample: 'Sample set, seed {s}',
+    srcRandom: 'Random set, seed {s}',
+    fetched: 'Fetched candidate',
+    nobody: 'Nobody',
+    distance: 'Distance to ideal',
+    survivors: 'Survivors',
+    statDistance: 'distance <b>{d}</b>',
+    statSurvivors: '<b>{s}</b> of {n} survive',
+    planeTitle: 'Decision plane',
+    planeOff: '{k} beyond the frame',
+    keyIdeal: 'Ideal point: max wanted, zero risk',
+    keyArc: 'Fetch distance; no survivor is inside it',
+    keyFront: 'Survivors nobody beats on both axes',
+    planeLabel: 'Decision plane: wanted gap against weighted risk for the candidates that passed the wanted stage.',
+    axisX: 'wanted gap (max − wanted)',
+    axisY: 'weighted risk √Σ weight × risk²',
+    whyFetch: 'Why #{id}',
+    whyNot: 'Why not #{id}',
+    whyNobody: 'Why nobody',
+    backToFetch: 'Back to the fetch',
+    reasonFetch: 'Closest survivor to the ideal point.',
+    reasonTie: 'Tied with {list} at the same distance; the seeded draw picked #{id}.',
+    reasonBelow: 'Stopped at the wanted stage: wanted <b>{w}</b> is below the threshold <b>{t}</b>.',
+    reasonBlocked: 'Blocked at the cap stage: {list}.',
+    reasonBlockedItem: '{layer} {v} is over its cap of {c}',
+    inlineFraud: 'fraud risk',
+    inlineCredit: 'credit risk',
+    inlineCompliance: 'compliance risk',
+    reasonWouldWin: 'Without that cap it would have been fetched: distance {d} against {b}.',
+    reasonWouldRank: 'Without that cap it would rank {r} of {k}.',
+    reasonSurvivor: 'Passed both gates but sits farther from the ideal point: <b>{d}</b> against <b>{b}</b>, rank {r} of {k}.',
+    reasonNobody: 'Every candidate that passed the wanted stage is over at least one cap. Loosen a cap or pick another policy.',
+    reasonPick: 'Hover or tap any bar or point to ask why it lost.',
+    termHead: 'Term',
+    termBars: 'Relative size',
+    termTotal: 'Distance',
+    termGap: 'Wanted gap²',
+    termLayer: '{layer} × {w}',
+    legendFetch: 'Fetched',
+    legendSurvivor: 'Survivor',
+    legendBlocked: 'Blocked by a cap',
+    legendBelow: 'Below wanted',
+    legendOver: 'Over the cap',
+    legendIdeal: 'Ideal point',
+    rounds: 'Rounds',
+    roundOf: '{r} of {k}',
+    volatility: 'Volatility',
+    play: 'Play the rounds',
+    pause: 'Pause',
+    roundButton: 'Round {r}, fetch {f}',
+    stability: '<b>#{id}</b> was fetched in {c} of {k} rounds; the pick changed {x} times.',
+    stabilityChangedOnce: '<b>#{id}</b> was fetched in {c} of {k} rounds; the pick changed once.',
+    stabilityOne: '<b>#{id}</b> held every round under this policy.',
+    stabilityNone: 'Nobody survives in {z} of {k} rounds.',
+    tagFetch: 'fetch #{id}',
+    tagThr: 'wanted ≥ {t}',
+    tagLayer: '{layer} × {w}',
+    tagLayerCap: '{layer} × {w}, cap {c}',
+    tagLayerCapOnly: '{layer}, cap {c}',
+    tagLayerIgnored: '{layer}, ignored',
+    tipCandidate: 'Candidate {id}',
+    statusFetch: 'Fetched.',
+    statusSurvivor: 'Survivor, rank {r} of {k}.',
+    statusBlocked: 'Blocked by a cap.',
+    statusBelow: 'Below the wanted threshold.',
+    canvasLabel: '3D chart of {n} candidates. Wanted scores rise above the top plate; fraud, credit and compliance risk hang below it on three floors. Drag to rotate, scroll or pinch to zoom.',
+    sceneError: 'The 3D view could not start. It loads three.js from cdn.jsdelivr.net and needs WebGL, so check the connection or try another browser. The panels still work.'
+  },
+  zh: {
+    title: '策略實驗室',
+    lede: '一個想要分數、三種風險。權重和上限決定誰會被選出。',
+    howSummary: '怎麼選出 fetch',
+    step1: '<b>Wanted 階段。</b>保留 wanted 不低於高分群平均的候選項，和原版完全一樣。',
+    step2: '<b>上限階段。</b>任何一層風險超過上限就被擋下；柱子上的條紋就是超出上限的量。',
+    step3: '<b>距離階段。</b>在剩下的人裡，選出 (最高 wanted − wanted)² + Σ 權重 × 風險² 最小的那一個；並列時由固定 seed 抽籤。',
+    pythonNote: 'repo 裡的 risk_lab.py 能重現這頁的每一個數字；第 1 回合選「原始規則」時，fetch 和兩層的原始版一致。',
+    source: 'GitHub 原始碼與 Python 參考實作',
+    repro: '用 Python 重現同一結果',
+    copy: '複製',
+    copied: '已複製',
+    docTitle: 'Wanted / Unwanted 策略實驗室',
+    classic: '兩層的原始版',
+    langLabel: '語言',
+    themeToDark: '切換深色主題',
+    themeToLight: '切換淺色主題',
+    panelsLabel: '面板',
+    tabResult: '結果',
+    tabPolicy: '策略',
+    tabRounds: '回合',
+    policyTitle: '策略',
+    presetOriginal: '原始規則',
+    presetBalanced: '平衡',
+    presetAverse: '風險趨避',
+    presetGrowth: '成長優先',
+    hintOriginal: '只看詐欺風險，和原版一樣。',
+    hintBalanced: '每一層都計分；嚴重的合規風險直接擋下。',
+    hintAverse: '每一層都重罰，上限也收得很緊。',
+    hintGrowth: '權重很輕，wanted 說了算；只擋極端的合規風險。',
+    hintCustom: '自訂策略。點任一個預設來比較。',
+    layerFraud: '詐欺風險',
+    layerCredit: '信用風險',
+    layerCompliance: '合規風險',
+    shortFraud: '詐欺',
+    shortCredit: '信用',
+    shortCompliance: '合規',
+    weight: '權重',
+    cap: '上限',
+    capNone: '無',
+    stateCounted: '計分',
+    stateCapOnly: '只看上限',
+    stateIgnored: '不計',
+    candidates: '候選項數量',
+    originalDemo: '原 wanted-unwanted-demo.html 的資料',
+    originalInteractive: '原 wanted-unwanted-interactive.html 的資料',
+    shuffle: '重新抽樣',
+    srcDemo: '原 demo 資料，seed {s}',
+    srcInteractive: '原 interactive 資料，seed {s}',
+    srcSample: '示範資料，seed {s}',
+    srcRandom: '隨機資料，seed {s}',
+    fetched: '選出的候選項',
+    nobody: '沒有人',
+    distance: '與理想點距離',
+    survivors: '存活者',
+    statDistance: '距離 <b>{d}</b>',
+    statSurvivors: '{n} 個中 <b>{s}</b> 個存活',
+    planeTitle: '決策平面',
+    planeOff: '{k} 個在範圍外',
+    keyIdeal: '理想點：wanted 最高、風險為 0',
+    keyArc: 'fetch 的距離；弧內沒有任何存活者',
+    keyFront: '兩個軸都沒人能同時勝過的存活者',
+    planeLabel: '決策平面：通過 wanted 階段的候選項，橫軸是 wanted 差距，縱軸是加權風險。',
+    axisX: 'wanted 差距（最高 − 自己）',
+    axisY: '加權風險 √Σ 權重 × 風險²',
+    whyFetch: '為什麼是 #{id}',
+    whyNot: '為什麼不是 #{id}',
+    whyNobody: '為什麼沒有人',
+    backToFetch: '回到 fetch',
+    reasonFetch: '最接近理想點的存活者。',
+    reasonTie: '與 {list} 距離相同，由固定 seed 的抽籤選出 #{id}。',
+    reasonBelow: '在 wanted 階段就停下：wanted <b>{w}</b> 低於門檻 <b>{t}</b>。',
+    reasonBlocked: '在上限階段被擋下：{list}。',
+    reasonBlockedItem: '{layer} {v} 超過上限 {c}',
+    inlineFraud: '詐欺風險',
+    inlineCredit: '信用風險',
+    inlineCompliance: '合規風險',
+    reasonWouldWin: '如果沒有這個上限，它會被選出：距離 {d}，對比 {b}。',
+    reasonWouldRank: '如果沒有這個上限，它會排第 {r} / {k}。',
+    reasonSurvivor: '兩關都通過，但離理想點較遠：<b>{d}</b> 對比 <b>{b}</b>，排第 {r} / {k}。',
+    reasonNobody: '通過 wanted 階段的人，每一個都至少超過一個上限。放寬上限，或換一個策略。',
+    reasonPick: '把游標移到任一根柱子或點上，就能看它為什麼沒被選。',
+    termHead: '項目',
+    termBars: '相對大小',
+    termTotal: '距離',
+    termGap: 'wanted 差距²',
+    termLayer: '{layer} × {w}',
+    legendFetch: '選出',
+    legendSurvivor: '存活者',
+    legendBlocked: '被上限擋下',
+    legendBelow: '未達 wanted',
+    legendOver: '超出上限',
+    legendIdeal: '理想點',
+    rounds: '回合',
+    roundOf: '{r} / {k}',
+    volatility: '波動',
+    play: '播放回合',
+    pause: '暫停',
+    roundButton: '第 {r} 回合，fetch {f}',
+    stability: '<b>#{id}</b> 在 {k} 回合中被選出 {c} 次；選擇換了 {x} 次。',
+    stabilityChangedOnce: '<b>#{id}</b> 在 {k} 回合中被選出 {c} 次；選擇換了 1 次。',
+    stabilityOne: '這個策略下，每一回合都選 <b>#{id}</b>。',
+    stabilityNone: '{k} 回合中有 {z} 回合沒有人存活。',
+    tagFetch: 'fetch #{id}',
+    tagThr: 'wanted ≥ {t}',
+    tagLayer: '{layer} × {w}',
+    tagLayerCap: '{layer} × {w}，上限 {c}',
+    tagLayerCapOnly: '{layer}，上限 {c}',
+    tagLayerIgnored: '{layer}，不計',
+    tipCandidate: '候選項 {id}',
+    statusFetch: '選出。',
+    statusSurvivor: '存活者，排第 {r} / {k}。',
+    statusBlocked: '被上限擋下。',
+    statusBelow: '未達 wanted 門檻。',
+    canvasLabel: '{n} 個候選項的 3D 圖：wanted 往最上層玻璃上方長，詐欺、信用、合規三種風險分三層往下掛。拖曳可旋轉，滾輪或雙指可縮放。',
+    sceneError: '3D 視圖無法啟動：它需要從 cdn.jsdelivr.net 載入 three.js 並支援 WebGL，請確認網路或換一個瀏覽器。各個面板仍可使用。'
+  }
+};
+
+let scene3d = null; // set once three.js has loaded; every caller tolerates null
+
+const storage = {
+  get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+  set(key, value) { try { localStorage.setItem(key, value); } catch { /* storage unavailable */ } }
+};
+
+let lang = (() => {
+  const fromUrl = new URLSearchParams(location.search).get('lang');
+  if (fromUrl === 'zh' || fromUrl === 'en') return fromUrl;
+  const saved = storage.get('wu-lang');
+  if (saved === 'zh' || saved === 'en') return saved;
+  return /^zh/i.test(navigator.language || '') ? 'zh' : 'en';
+})();
+
+function t(key, vars = {}) {
+  const table = STRINGS[lang] || STRINGS.en;
+  const text = table[key] ?? STRINGS.en[key] ?? key;
+  return text.replace(/\{(\w+)\}/g, (_, name) => (vars[name] ?? ''));
+}
+
+// ===================================================================
+// Mechanism
+// ===================================================================
+// @lab-core-begin
+// Python-compatible random: MT19937 seeded like random.Random(int), plus
+// getrandbits / _randbelow / randint / choice / random(). Layer 1 (fraud) uses
+// exactly the stream of multi-dimensional-choices.py, so the "Original rule"
+// policy reproduces the Python script and the classic view.
+const MT_N = 624, MT_M = 397;
+class PyRandom {
+  constructor(seed = 0) { this.mt = new Uint32Array(MT_N); this.index = MT_N + 1; if (Array.isArray(seed)) this.initByArray(seed); else this.seed(seed); }
+  seed(a) {
+    let n = Math.abs(Math.trunc(Number(a) || 0));
+    const key = [];
+    if (n === 0) key.push(0);
+    while (n > 0) { key.push(n % 4294967296); n = Math.floor(n / 4294967296); }
+    this.initByArray(key);
+  }
+  initGenrand(s) {
+    const mt = this.mt;
+    mt[0] = s >>> 0;
+    for (let i = 1; i < MT_N; i++) {
+      const prev = mt[i - 1] ^ (mt[i - 1] >>> 30);
+      mt[i] = (Math.imul(1812433253, prev) + i) >>> 0;
+    }
+    this.index = MT_N;
+  }
+  initByArray(key) {
+    const mt = this.mt;
+    this.initGenrand(19650218);
+    let i = 1, j = 0;
+    for (let k = Math.max(MT_N, key.length); k > 0; k--) {
+      const prev = mt[i - 1] ^ (mt[i - 1] >>> 30);
+      mt[i] = ((mt[i] ^ Math.imul(prev, 1664525)) + (key[j] >>> 0) + j) >>> 0;
+      i++; j++;
+      if (i >= MT_N) { mt[0] = mt[MT_N - 1]; i = 1; }
+      if (j >= key.length) j = 0;
+    }
+    for (let k = MT_N - 1; k > 0; k--) {
+      const prev = mt[i - 1] ^ (mt[i - 1] >>> 30);
+      mt[i] = ((mt[i] ^ Math.imul(prev, 1566083941)) - i) >>> 0;
+      i++;
+      if (i >= MT_N) { mt[0] = mt[MT_N - 1]; i = 1; }
+    }
+    mt[0] = 0x80000000;
+  }
+  uint32() {
+    const mt = this.mt;
+    let y;
+    if (this.index >= MT_N) {
+      let kk = 0;
+      for (; kk < MT_N - MT_M; kk++) {
+        y = (mt[kk] & 0x80000000) | (mt[kk + 1] & 0x7fffffff);
+        mt[kk] = mt[kk + MT_M] ^ (y >>> 1) ^ ((y & 1) ? 0x9908b0df : 0);
+      }
+      for (; kk < MT_N - 1; kk++) {
+        y = (mt[kk] & 0x80000000) | (mt[kk + 1] & 0x7fffffff);
+        mt[kk] = mt[kk + (MT_M - MT_N)] ^ (y >>> 1) ^ ((y & 1) ? 0x9908b0df : 0);
+      }
+      y = (mt[MT_N - 1] & 0x80000000) | (mt[0] & 0x7fffffff);
+      mt[MT_N - 1] = mt[MT_M - 1] ^ (y >>> 1) ^ ((y & 1) ? 0x9908b0df : 0);
+      this.index = 0;
+    }
+    y = mt[this.index++];
+    y ^= y >>> 11;
+    y ^= (y << 7) & 0x9d2c5680;
+    y ^= (y << 15) & 0xefc60000;
+    y ^= y >>> 18;
+    return y >>> 0;
+  }
+  getrandbits(k) { return this.uint32() >>> (32 - k); }
+  randbelow(n) {
+    const k = 32 - Math.clz32(n);
+    let r = this.getrandbits(k);
+    while (r >= n) r = this.getrandbits(k);
+    return r;
+  }
+  randint(a, b) { return a + this.randbelow(b - a + 1); }
+  choice(seq) { return seq[this.randbelow(seq.length)]; }
+  random() { const a = this.uint32() >>> 5, b = this.uint32() >>> 6; return (a * 67108864 + b) / 9007199254740992; }
+  snapshot() { return { mt: Uint32Array.from(this.mt), index: this.index }; }
+  static fromSnapshot(snap) { const r = new PyRandom(0); r.mt.set(snap.mt); r.index = snap.index; return r; }
+}
+
+// Same result as wanted_threshold() in the Python script (integer sums are
+// exact, so the prefix-sum form gives bit-identical averages), in O(n log n).
+function wantedThreshold(values) {
+  const ordered = Float64Array.from(values).sort();
+  const n = ordered.length;
+  if (n < 4 || ordered[0] === ordered[n - 1]) return ordered[0];
+  const minimum = ordered[0], maximum = ordered[n - 1];
+  const m = n - 2;
+  if (m < 2) return minimum;
+  const s1 = new Float64Array(m + 1), s2 = new Float64Array(m + 1);
+  for (let i = 0; i < m; i++) { const v = ordered[i + 1]; s1[i + 1] = s1[i] + v; s2[i + 1] = s2[i] + v * v; }
+  let bestSplit = 0, bestValue = Infinity;
+  for (let split = 0; split < m - 1; split++) {
+    const a = split + 1, b = m - a;
+    const lowSum = s1[a], lowSq = s2[a];
+    const highSum = s1[m] - s1[a], highSq = s2[m] - s2[a];
+    const value = (lowSq - 2 * minimum * lowSum + a * minimum * minimum) / a
+      + (highSq - 2 * maximum * highSum + b * maximum * maximum) / b;
+    if (value < bestValue) { bestValue = value; bestSplit = split; }
+  }
+  return (s1[m] - s1[bestSplit + 1]) / (m - (bestSplit + 1));
+}
+
+const SCORE_MAX = 50;
+const CAP_OFF = 50;          // a cap of 50 can never be exceeded, so it means "no cap"
+const ROUND_COUNT = 12;
+const TAG_LAYER = 0x6c617972; // derived streams for the extra layers
+const TAG_DRIFT = 0x64726966; // derived streams for round-to-round drift
+const clampScore = (v) => Math.min(SCORE_MAX, Math.max(0, v));
+
+function stream(seed, tag, index) {
+  const s = Math.abs(Math.trunc(Number(seed) || 0));
+  return new PyRandom([s % 4294967296, Math.floor(s / 4294967296), tag, index]);
+}
+
+function gaussian(rng) {
+  const u1 = 1 - rng.random(), u2 = rng.random();
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+
+// Base pool: wanted and fraud come from the Python stream. Credit risk leans
+// against fraud risk (so the layers trade off and weights matter) and a little
+// with wanted; compliance is mostly clean with a heavy tail of serious flags.
+function generateWorld(n, seed) {
+  const rng = new PyRandom(seed);
+  const wanted = Array.from({ length: n }, () => rng.randint(0, SCORE_MAX));
+  const fraud = Array.from({ length: n }, () => rng.randint(0, SCORE_MAX));
+  const tieState = rng.snapshot();
+  const creditStream = stream(seed, TAG_LAYER, 1);
+  const credit = wanted.map((w, i) => clampScore(Math.round(0.25 * w + 0.65 * (SCORE_MAX - fraud[i]) + 18 * creditStream.random() - 8)));
+  const complianceStream = stream(seed, TAG_LAYER, 2);
+  const compliance = wanted.map(() => { const r = complianceStream.random(); return clampScore(Math.round(SCORE_MAX * (r * r * r))); });
+  const noise = [];
+  for (let t = 1; t < ROUND_COUNT; t++) {
+    const drift = stream(seed, TAG_DRIFT, t);
+    noise.push([0, 1, 2, 3].map(() => Float64Array.from({ length: n }, () => gaussian(drift))));
+  }
+  return { n, seed, base: { wanted, risks: [fraud, credit, compliance] }, tieState, noise };
+}
+
+// Round 0 is the base pool; each later round is a bounded random walk whose
+// step size is the volatility. The same noise is reused for every volatility.
+function buildRounds(world, volatility) {
+  const rounds = [world.base];
+  for (let t = 1; t < ROUND_COUNT; t++) {
+    const prev = rounds[t - 1];
+    const z = world.noise[t - 1];
+    const step = (series, s) => series.map((v, i) => clampScore(Math.round(v + volatility * z[s][i])));
+    rounds.push({ wanted: step(prev.wanted, 0), risks: prev.risks.map((series, k) => step(series, k + 1)) });
+  }
+  return rounds;
+}
+
+// Three stages: wanted threshold (unchanged), hard caps per risk layer, then
+// the smallest weighted squared distance to the ideal point
+// (max wanted, zero on every risk layer). Status: 0 below threshold,
+// 1 blocked by a cap, 2 survivor, 3 fetched.
+function decide(data, policy, tieState) {
+  const { wanted, risks } = data;
+  const n = wanted.length, K = risks.length;
+  const threshold = wantedThreshold(wanted);
+  let maxWanted = -Infinity;
+  for (const w of wanted) if (w > maxWanted) maxWanted = w;
+  let considered = [];
+  for (let i = 0; i < n; i++) if (wanted[i] >= threshold) considered.push(i);
+  if (!considered.length) considered = wanted.flatMap((w, i) => (w === maxWanted ? [i] : []));
+  const status = new Uint8Array(n);
+  const gap2 = new Float64Array(n).fill(NaN);
+  const terms = Array.from({ length: K }, () => new Float64Array(n).fill(NaN));
+  const dist = new Float64Array(n).fill(NaN);
+  const violations = new Map();
+  const survivors = [];
+  for (const i of considered) {
+    const g = (maxWanted - wanted[i]) ** 2;
+    gap2[i] = g;
+    let d = g;
+    for (let k = 0; k < K; k++) {
+      const term = policy.weights[k] * risks[k][i] ** 2;
+      terms[k][i] = term;
+      d += term;
+    }
+    dist[i] = d;
+    const over = [];
+    for (let k = 0; k < K; k++) if (policy.caps[k] < CAP_OFF && risks[k][i] > policy.caps[k]) over.push(k);
+    if (over.length) { violations.set(i, over); status[i] = 1; }
+    else { status[i] = 2; survivors.push(i); }
+  }
+  let best = Infinity;
+  for (const i of survivors) if (dist[i] < best) best = dist[i];
+  const finalists = survivors.filter((i) => dist[i] === best);
+  let fetch = -1;
+  if (finalists.length) {
+    fetch = PyRandom.fromSnapshot(tieState).choice(finalists);
+    status[fetch] = 3;
+  }
+  const ranking = [...survivors].sort((a, b) => (dist[a] - dist[b]) || ((b === fetch) - (a === fetch)) || (a - b));
+  return { threshold, maxWanted, considered, survivors, finalists, fetch, best, status, gap2, terms, dist, violations, ranking };
+}
+// @lab-core-end
+
+// ===================================================================
+// Data sets and policies
+// ===================================================================
+const LAYER_KEYS = ['Fraud', 'Credit', 'Compliance'];
+const POOLS = [
+  { n: 5, cols: 5, seed: 444, kind: 'sample' },
+  { n: 12, cols: 4, seed: 7, kind: 'demo' },
+  { n: 36, cols: 6, seed: 112, kind: 'sample' },
+  { n: 100, cols: 10, seed: 42, kind: 'interactive' },
+  { n: 400, cols: 20, seed: 39, kind: 'sample' }
+];
+const POLICIES = {
+  original: { weights: [1, 0, 0], caps: [50, 50, 50] },
+  balanced: { weights: [1, 1, 0.5], caps: [50, 50, 30] },
+  averse: { weights: [1.5, 1.5, 2], caps: [35, 35, 12] },
+  growth: { weights: [0.2, 0.15, 0.05], caps: [50, 50, 40] }
+};
+const WEIGHT_MAX = 3;
+
+const state = {
+  n: 36, cols: 6, seed: 112, kind: 'sample',
+  weights: [...POLICIES.balanced.weights],
+  caps: [...POLICIES.balanced.caps],
+  volatility: 4,
+  round: 0,
+  selected: -1,
+  hover: -1,
+  tab: 'analysis'
+};
+
+(function readUrl() {
+  const p = new URLSearchParams(location.search);
+  const n = parseInt(p.get('n'), 10);
+  if (Number.isFinite(n) && n >= 1 && n <= 900) {
+    const pool = POOLS.find((x) => x.n === n);
+    state.n = n;
+    state.cols = pool ? pool.cols : Math.ceil(Math.sqrt(n));
+    const seedText = p.get('seed');
+    if (seedText !== null && /^\d{1,15}$/.test(seedText)) {
+      state.seed = Number(seedText);
+      state.kind = pool && pool.seed === state.seed ? pool.kind : 'random';
+    } else if (pool) {
+      state.seed = pool.seed;
+      state.kind = pool.kind;
+    } else {
+      state.seed = 1;
+      state.kind = 'random';
+    }
+  }
+  const preset = p.get('policy');
+  if (preset && POLICIES[preset]) {
+    state.weights = [...POLICIES[preset].weights];
+    state.caps = [...POLICIES[preset].caps];
+  }
+  const w = (p.get('w') || '').split(',').map(Number);
+  if (w.length === 3 && w.every((v) => Number.isFinite(v) && v >= 0 && v <= WEIGHT_MAX)) state.weights = w;
+  const c = (p.get('c') || '').split(',').map(Number);
+  if (c.length === 3 && c.every((v) => Number.isInteger(v) && v >= 0 && v <= CAP_OFF)) state.caps = c;
+  const vol = Number(p.get('vol'));
+  if (p.has('vol') && Number.isFinite(vol) && vol >= 0 && vol <= 10) state.volatility = Math.round(vol * 2) / 2;
+  const round = parseInt(p.get('round'), 10);
+  if (Number.isFinite(round) && round >= 1 && round <= ROUND_COUNT) state.round = round - 1;
+})();
+
+let world = null;
+let rounds = null;
+let decisions = null;
+let trail = [];
+
+function policy() { return { weights: state.weights, caps: state.caps }; }
+function activePreset() {
+  for (const [name, p] of Object.entries(POLICIES)) {
+    if (p.weights.every((v, k) => Math.abs(v - state.weights[k]) < 1e-9) && p.caps.every((v, k) => v === state.caps[k])) return name;
+  }
+  return null;
+}
+function rebuildWorld() { world = generateWorld(state.n, state.seed); trail = []; }
+function rebuildRounds() { rounds = buildRounds(world, state.volatility); }
+function rebuildDecisions() { decisions = rounds.map((data) => decide(data, policy(), world.tieState)); }
+const current = () => decisions[state.round];
+const currentData = () => rounds[state.round];
+
+let urlTimer = 0;
+function syncUrl() {
+  clearTimeout(urlTimer);
+  urlTimer = setTimeout(() => {
+    const p = new URLSearchParams(location.search);
+    p.set('n', String(state.n));
+    p.set('seed', String(state.seed));
+    const preset = activePreset();
+    p.delete('policy'); p.delete('w'); p.delete('c');
+    if (preset) p.set('policy', preset);
+    else { p.set('w', state.weights.map((v) => +v.toFixed(2)).join(',')); p.set('c', state.caps.join(',')); }
+    p.set('vol', String(state.volatility));
+    if (state.round > 0) p.set('round', String(state.round + 1)); else p.delete('round');
+    history.replaceState(null, '', `${location.pathname}?${p.toString()}${location.hash}`);
+  }, 250);
+}
+
+// ===================================================================
+// Interface
+// ===================================================================
+const $ = (id) => document.getElementById(id);
+const els = {
+  canvas: $('scene'), how: $('how'), langSeg: $('langSeg'), themeBtn: $('themeBtn'), tabs: $('tabs'),
+  presetGroup: $('presetGroup'), presetHint: $('presetHint'), layerControls: $('layerControls'),
+  countSeg: $('countSeg'), shuffleBtn: $('shuffleBtn'), sourceLine: $('sourceLine'),
+  fetchLine: $('fetchLine'), fetchId: $('fetchId'), statDistance: $('statDistance'), statSurvivors: $('statSurvivors'),
+  planeSvg: $('planeSvg'), planeNote: $('planeNote'),
+  reasonTitle: $('reasonTitle'), reasonClear: $('reasonClear'), reasonText: $('reasonText'), reasonNote: $('reasonNote'),
+  terms: $('terms'), termsBody: $('termsBody'), termColSel: $('termColSel'), termColFetch: $('termColFetch'),
+  termTotalSel: $('termTotalSel'), termTotalFetch: $('termTotalFetch'),
+  playBtn: $('playBtn'), roundLabel: $('roundLabel'), volInput: $('volInput'), volOut: $('volOut'),
+  roundStrip: $('roundStrip'), stability: $('stability'), tooltip: $('tooltip'), sceneError: $('sceneError'),
+  pyCmd: $('pyCmd'), copyBtn: $('copyBtn'),
+  tagFetch: $('tagFetch'), tagThr: $('tagThr'), tagLayers: [$('tagLayer0'), $('tagLayer1'), $('tagLayer2')]
+};
+const compact = window.matchMedia('(max-width: 1099px), (max-aspect-ratio: 4/5)');
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const fmtNum = (v) => {
+  if (!Number.isFinite(v)) return '—';
+  const r = Math.round(v * 10) / 10;
+  return new Intl.NumberFormat(lang === 'zh' ? 'zh-Hant' : 'en', { maximumFractionDigits: 1 }).format(r);
+};
+const fmtWeight = (v) => { const r = Math.round(v * 100) / 100; return Math.round(r * 100) % 10 === 0 ? r.toFixed(1) : r.toFixed(2); };
+const layerName = (k) => t(`layer${LAYER_KEYS[k]}`);
+const layerShort = (k) => t(`short${LAYER_KEYS[k]}`);
+const layerCounts = (k) => state.weights[k] > 0;
+const layerCapped = (k) => state.caps[k] < CAP_OFF;
+
+// ---------- static pieces ----------
+POOLS.forEach((pool) => {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.dataset.n = String(pool.n);
+  button.textContent = String(pool.n);
+  if (pool.kind === 'demo' || pool.kind === 'interactive') {
+    const dot = document.createElement('span');
+    dot.className = 'orig';
+    dot.setAttribute('aria-hidden', 'true');
+    button.append(dot);
+  }
+  els.countSeg.append(button);
+});
+
+LAYER_KEYS.forEach((_, k) => {
+  const row = document.createElement('div');
+  row.className = 'layer';
+  row.dataset.layer = String(k);
+  row.innerHTML = `
+    <div class="layer-head"><span class="layer-name"></span><span class="layer-state"></span></div>
+    <label class="slider"><span class="lbl-weight"></span><input type="range" min="0" max="${WEIGHT_MAX}" step="0.05" data-kind="weight" data-layer="${k}"><output></output></label>
+    <label class="slider"><span class="lbl-cap"></span><input type="range" min="0" max="${CAP_OFF}" step="1" data-kind="cap" data-layer="${k}"><output></output></label>`;
+  els.layerControls.append(row);
+});
+
+for (let r = 0; r < ROUND_COUNT; r++) {
+  const li = document.createElement('li');
+  li.innerHTML = `<button type="button" data-round="${r}"><span class="r-num">${r + 1}</span><span class="r-fetch">—</span></button>`;
+  els.roundStrip.append(li);
+}
+
+function setFill(input) {
+  const min = Number(input.min), max = Number(input.max), v = Number(input.value);
+  input.style.setProperty('--fill', `${((v - min) / (max - min)) * 100}%`);
+}
+
+function renderStatic() {
+  document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : 'en';
+  document.title = t('docTitle');
+  document.querySelectorAll('[data-i18n]').forEach((node) => { node.textContent = t(node.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-html]').forEach((node) => { node.innerHTML = t(node.dataset.i18nHtml); });
+  document.querySelectorAll('[data-i18n-aria]').forEach((node) => node.setAttribute('aria-label', t(node.dataset.i18nAria)));
+  els.langSeg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  els.countSeg.querySelectorAll('button').forEach((b) => {
+    const pool = POOLS.find((p) => String(p.n) === b.dataset.n);
+    b.title = pool.kind === 'demo' ? t('originalDemo') : pool.kind === 'interactive' ? t('originalInteractive') : '';
+  });
+  els.layerControls.querySelectorAll('.layer').forEach((row) => {
+    const k = Number(row.dataset.layer);
+    row.querySelector('.layer-name').textContent = layerName(k);
+    row.querySelector('.lbl-weight').textContent = t('weight');
+    row.querySelector('.lbl-cap').textContent = t('cap');
+  });
+  els.planeSvg.setAttribute('aria-label', t('planeLabel'));
+  renderThemeButton();
+  renderPlayButton();
+}
+
+function renderPolicy() {
+  const preset = activePreset();
+  els.presetGroup.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.preset === preset)));
+  els.presetHint.textContent = preset ? t(`hint${preset[0].toUpperCase()}${preset.slice(1)}`) : t('hintCustom');
+  els.layerControls.querySelectorAll('.layer').forEach((row) => {
+    const k = Number(row.dataset.layer);
+    const wInput = row.querySelector('[data-kind="weight"]');
+    const cInput = row.querySelector('[data-kind="cap"]');
+    if (document.activeElement !== wInput) wInput.value = String(state.weights[k]);
+    if (document.activeElement !== cInput) cInput.value = String(state.caps[k]);
+    setFill(wInput); setFill(cInput);
+    wInput.nextElementSibling.textContent = fmtWeight(state.weights[k]);
+    cInput.nextElementSibling.textContent = layerCapped(k) ? String(state.caps[k]) : t('capNone');
+    const counted = layerCounts(k), capped = layerCapped(k);
+    row.classList.toggle('is-muted', !counted && !capped);
+    row.querySelector('.layer-state').textContent = counted ? t('stateCounted') : capped ? t('stateCapOnly') : t('stateIgnored');
+    wInput.setAttribute('aria-valuetext', fmtWeight(state.weights[k]));
+    cInput.setAttribute('aria-valuetext', capped ? String(state.caps[k]) : t('capNone'));
+  });
+  els.countSeg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.n) === state.n)));
+  const srcKey = { demo: 'srcDemo', interactive: 'srcInteractive', sample: 'srcSample', random: 'srcRandom' }[state.kind];
+  els.sourceLine.textContent = t(srcKey, { s: state.seed });
+}
+
+function pythonCommand() {
+  const preset = activePreset();
+  const policyArgs = preset ? `--policy ${preset}` : `--weights ${state.weights.map((v) => +v.toFixed(2)).join(',')} --caps ${state.caps.join(',')}`;
+  return `python risk_lab.py --num-elements ${state.n} --seed ${state.seed} ${policyArgs} --volatility ${state.volatility} --round ${state.round + 1}`;
+}
+
+function renderReadout() {
+  els.pyCmd.textContent = pythonCommand();
+  const d = current();
+  const none = d.fetch < 0;
+  els.fetchLine.classList.toggle('is-none', none);
+  els.fetchId.textContent = none ? t('nobody') : `#${d.fetch}`;
+  els.statDistance.innerHTML = none ? '' : t('statDistance', { d: fmtNum(d.best) });
+  els.statSurvivors.innerHTML = t('statSurvivors', { s: d.survivors.length, n: state.n });
+  els.canvas.setAttribute('aria-label', t('canvasLabel', { n: state.n }));
+}
+
+// ---------- rounds ----------
+function renderRounds() {
+  els.volInput.value = String(state.volatility);
+  setFill(els.volInput);
+  els.volOut.textContent = String(state.volatility);
+  els.roundLabel.textContent = t('roundOf', { r: state.round + 1, k: ROUND_COUNT });
+  const fetches = decisions.map((d) => d.fetch);
+  els.roundStrip.querySelectorAll('button').forEach((b, r) => {
+    const f = fetches[r];
+    b.querySelector('.r-fetch').textContent = f < 0 ? '—' : `#${f}`;
+    b.classList.toggle('is-none', f < 0);
+    b.classList.toggle('is-change', r > 0 && f !== fetches[r - 1]);
+    b.setAttribute('aria-current', String(r === state.round));
+    b.setAttribute('aria-label', t('roundButton', { r: r + 1, f: f < 0 ? '—' : `#${f}` }));
+  });
+  const counts = new Map();
+  fetches.forEach((f) => { if (f >= 0) counts.set(f, (counts.get(f) || 0) + 1); });
+  const empty = fetches.filter((f) => f < 0).length;
+  const changes = fetches.slice(1).filter((f, i) => f !== fetches[i]).length;
+  let text = '';
+  if (counts.size) {
+    const [id, c] = [...counts.entries()].sort((a, b) => (b[1] - a[1]) || (a[0] - b[0]))[0];
+    text = c === ROUND_COUNT ? t('stabilityOne', { id }) : t(changes === 1 ? 'stabilityChangedOnce' : 'stability', { id, c, k: ROUND_COUNT, x: changes });
+  }
+  if (empty) text += (text ? ' ' : '') + t('stabilityNone', { z: empty, k: ROUND_COUNT });
+  els.stability.innerHTML = text;
+}
+
+// ---------- decision plane ----------
+const PLANE = { x0: 40, y0: 248, size: 240 };
+let planeNodes = null;
+function buildPlaneNodes() {
+  const NS = 'http://www.w3.org/2000/svg';
+  els.planeSvg.innerHTML = `
+    <g class="frame"></g>
+    <path class="arc-fill"></path>
+    <path class="arc"></path>
+    <path class="frontier"></path>
+    <g class="pts"></g>
+    <path class="ideal" d=""></path>
+    <text class="pt-label" id="planeFetchLabel"></text>`;
+  const ptsGroup = els.planeSvg.querySelector('.pts');
+  planeNodes = [];
+  for (let i = 0; i < state.n; i++) {
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'pt');
+    g.dataset.id = String(i);
+    g.innerHTML = '<circle class="hit" r="9"></circle><circle class="halo" r="9"></circle><circle class="ring" r="8.5"></circle><circle class="dot" r="4.5"></circle><path class="cross" d="M-3.6 -3.6 L3.6 3.6 M3.6 -3.6 L-3.6 3.6"></path>';
+    g.style.display = 'none';
+    ptsGroup.append(g);
+    planeNodes.push(g);
+  }
+}
+
+function planeCoords(d, data, id) {
+  const gx = d.maxWanted - data.wanted[id];
+  let s = 0;
+  for (let k = 0; k < 3; k++) s += state.weights[k] * data.risks[k][id] ** 2;
+  return [gx, Math.sqrt(s)];
+}
+
+function renderPlane() {
+  const d = current(), data = currentData();
+  const coords = new Map();
+  let maxCoord = 1;
+  for (const id of d.considered) {
+    const c = planeCoords(d, data, id);
+    coords.set(id, c);
+    maxCoord = Math.max(maxCoord, c[0], c[1]);
+  }
+  let D;
+  if (d.fetch >= 0) D = Math.min(Math.max(2.6 * Math.sqrt(d.best), 8), maxCoord * 1.06);
+  else D = maxCoord * 1.06;
+  D = Math.max(D, 4);
+  const { x0, y0, size } = PLANE;
+  const sx = (v) => x0 + (Math.min(v, D) / D) * size;
+  const sy = (v) => y0 - (Math.min(v, D) / D) * size;
+  const ticks = [0, D / 2, D];
+  const fmtTick = (v) => (D < 10 ? v.toFixed(1) : Math.round(v).toString());
+  els.planeSvg.querySelector('.frame').innerHTML =
+    ticks.map((v) => `<line class="grid" x1="${sx(v)}" y1="${y0}" x2="${sx(v)}" y2="${y0 - size}"/><line class="grid" x1="${x0}" y1="${sy(v)}" x2="${x0 + size}" y2="${sy(v)}"/>`).join('')
+    + `<line class="axis" x1="${x0}" y1="${y0}" x2="${x0 + size}" y2="${y0}"/><line class="axis" x1="${x0}" y1="${y0}" x2="${x0}" y2="${y0 - size}"/>`
+    + ticks.map((v) => `<text class="tick" x="${sx(v)}" y="${y0 + 13}" text-anchor="middle">${fmtTick(v)}</text>`).join('')
+    + ticks.slice(1).map((v) => `<text class="tick" x="${x0 - 6}" y="${sy(v) + 3.5}" text-anchor="end">${fmtTick(v)}</text>`).join('')
+    + `<text class="axis-label" x="${x0 + size / 2}" y="${y0 + 32}" text-anchor="middle">${t('axisX')}</text>`
+    + `<text class="axis-label" transform="translate(${x0 - 28} ${y0 - size / 2}) rotate(-90)" text-anchor="middle">${t('axisY')}</text>`;
+  const star = (cx, cy, r) => {
+    let p = '';
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      const rr = i % 2 ? r * 0.45 : r;
+      p += `${i ? 'L' : 'M'}${(cx + rr * Math.cos(a)).toFixed(2)} ${(cy + rr * Math.sin(a)).toFixed(2)}`;
+    }
+    return `${p}Z`;
+  };
+  els.planeSvg.querySelector('.ideal').setAttribute('d', star(x0, y0, 6));
+  const arc = els.planeSvg.querySelector('.arc');
+  const arcFill = els.planeSvg.querySelector('.arc-fill');
+  if (d.fetch >= 0 && d.best > 0) {
+    const r = (Math.sqrt(d.best) / D) * size;
+    const rr = Math.min(r, size * 1.5);
+    arc.setAttribute('d', `M ${x0 + rr} ${y0} A ${rr} ${rr} 0 0 0 ${x0} ${y0 - rr}`);
+    arcFill.setAttribute('d', `M ${x0} ${y0} L ${x0 + rr} ${y0} A ${rr} ${rr} 0 0 0 ${x0} ${y0 - rr} Z`);
+  } else {
+    arc.setAttribute('d', '');
+    arcFill.setAttribute('d', '');
+  }
+  // frontier: survivors not beaten on both axes
+  const surv = d.survivors.map((id) => [id, ...coords.get(id)]).sort((a, b) => (a[1] - b[1]) || (a[2] - b[2]));
+  const front = [];
+  let minY = Infinity;
+  for (const p of surv) if (p[2] < minY) { front.push(p); minY = p[2]; }
+  let path = '';
+  front.forEach((p, i) => {
+    const x = sx(p[1]), y = sy(p[2]);
+    if (i === 0) path += `M ${x} ${sy(Math.min(D, p[2] + D))}` + ` L ${x} ${y}`;
+    else path += ` L ${x} ${sy(front[i - 1][2])} L ${x} ${y}`;
+  });
+  if (front.length) path += ` L ${sx(D)} ${sy(front[front.length - 1][2])}`;
+  els.planeSvg.querySelector('.frontier').setAttribute('d', path);
+  let off = 0;
+  planeNodes.forEach((g, id) => {
+    const c = coords.get(id);
+    if (!c) { g.style.display = 'none'; return; }
+    const st = d.status[id];
+    const outside = c[0] > D || c[1] > D;
+    if (outside) off++;
+    g.style.display = '';
+    g.setAttribute('class', `pt s${st}${outside ? ' is-off' : ''}${id === state.hover ? ' is-hover' : ''}${id === state.selected ? ' is-selected' : ''}`);
+    g.style.transform = `translate(${sx(c[0]).toFixed(2)}px, ${sy(c[1]).toFixed(2)}px)`;
+    g.querySelector('.dot').style.display = st === 1 ? 'none' : '';
+    g.querySelector('.cross').style.display = st === 1 ? '' : 'none';
+    g.querySelector('.halo').style.display = st === 3 ? '' : 'none';
+    g.querySelector('.ring').style.display = id === state.selected ? '' : 'none';
+  });
+  // draw the fetch on top
+  if (d.fetch >= 0) planeNodes[d.fetch].parentNode.append(planeNodes[d.fetch]);
+  const label = $('planeFetchLabel');
+  if (d.fetch >= 0) {
+    const c = coords.get(d.fetch);
+    label.textContent = `#${d.fetch}`;
+    label.setAttribute('x', String(Math.min(sx(c[0]) + 10, x0 + size - 4)));
+    label.setAttribute('y', String(Math.max(sy(c[1]) - 8, y0 - size + 10)));
+  } else label.textContent = '';
+  els.planeNote.textContent = off ? t('planeOff', { k: off }) : '';
+}
+
+// ---------- reason ----------
+function renderReason() {
+  const d = current(), data = currentData();
+  const focus = state.selected >= 0 ? state.selected : state.hover >= 0 ? state.hover : d.fetch;
+  els.reasonClear.hidden = !(state.selected >= 0 && state.selected !== d.fetch);
+  const showTerms = (id) => {
+    const rows = [];
+    const sel = (id >= 0 && d.considered.includes(id)) ? id : -1;
+    const fetch = d.fetch;
+    const termsFor = (i) => (i < 0 ? null : [d.gap2[i], d.terms[0][i], d.terms[1][i], d.terms[2][i]]);
+    const a = termsFor(sel === fetch ? -1 : sel), b = termsFor(fetch);
+    if (!a && !b) { els.terms.hidden = true; return; }
+    els.terms.hidden = false;
+    els.termColSel.textContent = a ? `#${sel}` : '';
+    els.termColFetch.textContent = b ? `#${fetch}` : '';
+    const labels = [t('termGap'), ...[0, 1, 2].map((k) => t('termLayer', { layer: layerShort(k), w: fmtWeight(state.weights[k]) }))];
+    const totalA = a ? a.reduce((s, v) => s + v, 0) : 0, totalB = b ? b.reduce((s, v) => s + v, 0) : 0;
+    const scale = Math.max(totalA, totalB, 1);
+    labels.forEach((label, r) => {
+      const va = a ? a[r] : null, vb = b ? b[r] : null;
+      rows.push(`<tr><td>${label}</td><td class="${va === 0 ? 'is-zero' : ''}">${va === null ? '' : fmtNum(va)}</td><td class="${vb === 0 ? 'is-zero' : ''}">${vb === null ? '' : fmtNum(vb)}</td>`
+        + `<td class="bar-cell"><div class="bars">${va === null ? '' : `<i class="b-sel" style="width:${(va / scale) * 100}%"></i>`}${vb === null ? '' : `<i class="b-fetch" style="width:${(vb / scale) * 100}%"></i>`}</div></td></tr>`);
+    });
+    els.termsBody.innerHTML = rows.join('');
+    els.termTotalSel.textContent = a ? fmtNum(totalA) : '';
+    els.termTotalFetch.textContent = b ? fmtNum(totalB) : '';
+  };
+  els.reasonNote.textContent = '';
+  if (focus < 0) {
+    els.reasonTitle.innerHTML = `<span class="key key-blocked"></span>${t('whyNobody')}`;
+    els.reasonText.innerHTML = t('reasonNobody');
+    els.terms.hidden = true;
+    return;
+  }
+  const st = d.status[focus];
+  const keyClass = st === 3 ? 'key-fetch' : st === 2 ? 'key-pass' : st === 1 ? 'key-blocked' : 'key-other';
+  els.reasonTitle.innerHTML = `<span class="key ${keyClass}"></span>${st === 3 ? t('whyFetch', { id: focus }) : t('whyNot', { id: focus })}`;
+  if (st === 3) {
+    els.reasonText.innerHTML = d.finalists.length > 1
+      ? t('reasonTie', { list: d.finalists.filter((i) => i !== focus).map((i) => `#${i}`).join(lang === 'zh' ? '、' : ', '), id: focus })
+      : t('reasonFetch');
+    if (state.selected < 0 && state.hover < 0) els.reasonNote.textContent = t('reasonPick');
+  } else if (st === 0) {
+    els.reasonText.innerHTML = t('reasonBelow', { w: data.wanted[focus], t: d.threshold.toFixed(2) });
+  } else if (st === 1) {
+    const items = d.violations.get(focus).map((k) => t('reasonBlockedItem', { layer: t(`inline${LAYER_KEYS[k]}`), v: data.risks[k][focus], c: state.caps[k] }));
+    els.reasonText.innerHTML = t('reasonBlocked', { list: items.join(lang === 'zh' ? '；' : '; ') });
+    const better = d.survivors.filter((i) => d.dist[i] < d.dist[focus]).length;
+    if (d.fetch < 0 || d.dist[focus] < d.best) els.reasonNote.textContent = d.fetch < 0 ? '' : t('reasonWouldWin', { d: fmtNum(d.dist[focus]), b: fmtNum(d.best) });
+    else els.reasonNote.textContent = t('reasonWouldRank', { r: better + 1, k: d.survivors.length + 1 });
+  } else {
+    els.reasonText.innerHTML = t('reasonSurvivor', { d: fmtNum(d.dist[focus]), b: fmtNum(d.best), r: d.ranking.indexOf(focus) + 1, k: d.survivors.length });
+  }
+  if (st === 0) els.terms.hidden = true; else showTerms(focus);
+}
+
+// ---------- tooltip ----------
+function renderTooltip(id) {
+  const d = current(), data = currentData();
+  if (id < 0) return;
+  const st = d.status[id];
+  const keyClass = st === 3 ? 'key-fetch' : st === 2 ? 'key-pass' : st === 1 ? 'key-blocked' : 'key-other';
+  const note = st === 3 ? t('statusFetch') : st === 2 ? t('statusSurvivor', { r: d.ranking.indexOf(id) + 1, k: d.survivors.length }) : st === 1 ? t('statusBlocked') : t('statusBelow');
+  els.tooltip.innerHTML = `<div class="tt-title"><span class="key ${keyClass}"></span>${t('tipCandidate', { id })}</div>`
+    + `<div class="tt-grid"><span>wanted</span><b>${data.wanted[id]}</b>${[0, 1, 2].map((k) => `<span>${layerShort(k)}</span><b>${data.risks[k][id]}</b>`).join('')}</div>`
+    + `<div class="tt-note">${note}</div>`;
+  els.tooltip.hidden = false;
+}
+function positionTooltip(x, y) {
+  const tip = els.tooltip;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let left = x + 16, top = y + 16;
+  if (left + w > window.innerWidth - 8) left = x - w - 16;
+  if (top + h > window.innerHeight - 8) top = y - h - 16;
+  tip.style.transform = `translate(${Math.max(8, left)}px, ${Math.max(8, top)}px)`;
+}
+function hideTooltip() { els.tooltip.hidden = true; }
+
+// ---------- whole-interface refresh ----------
+function renderAll() {
+  renderPolicy();
+  renderReadout();
+  renderPlane();
+  renderReason();
+  renderRounds();
+}
+
+function setHover(id, source) {
+  if (id === state.hover) return;
+  state.hover = id;
+  if (id >= 0) renderTooltip(id); else hideTooltip();
+  renderPlane();
+  renderReason();
+  scene3d?.setHover(id);
+  if (source !== 'scene') els.canvas.classList.remove('is-hovering');
+}
+function setSelected(id) {
+  state.selected = id;
+  renderPlane();
+  renderReason();
+  scene3d?.setSelected(id);
+}
+
+// ---------- theme ----------
+let theme = (() => {
+  const saved = storage.get('wu-theme');
+  if (saved === 'light' || saved === 'dark') return saved;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+})();
+function applyTheme(next, persist) {
+  theme = next;
+  document.documentElement.dataset.theme = theme;
+  if (persist) storage.set('wu-theme', theme);
+  renderThemeButton();
+  scene3d?.setTheme(theme);
+}
+function renderThemeButton() {
+  els.themeBtn.setAttribute('aria-label', theme === 'dark' ? t('themeToLight') : t('themeToDark'));
+  els.themeBtn.title = els.themeBtn.getAttribute('aria-label');
+}
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
+  if (!storage.get('wu-theme')) applyTheme(event.matches ? 'dark' : 'light', false);
+});
+
+// ---------- updates ----------
+let lastFetch = null;
+function policyOrRoundChanged({ heights = false } = {}) {
+  const prev = lastFetch;
+  const d = current();
+  if (prev !== null && prev >= 0 && d.fetch !== prev) {
+    trail = [...trail.filter((id) => id !== prev), prev].slice(-5);
+  }
+  lastFetch = d.fetch;
+  if (state.selected >= 0 && state.selected >= state.n) state.selected = -1;
+  renderAll();
+  syncUrl();
+  scene3d?.update({ heights, fetchChanged: prev !== null && prev !== d.fetch });
+}
+
+function loadPool({ n, cols, seed, kind }) {
+  stopPlay();
+  Object.assign(state, { n, cols, seed, kind, round: 0, selected: -1, hover: -1 });
+  rebuildWorld();
+  rebuildRounds();
+  rebuildDecisions();
+  lastFetch = current().fetch;
+  buildPlaneNodes();
+  hideTooltip();
+  renderAll();
+  syncUrl();
+  scene3d?.setWorld({ reframe: true });
+}
+
+let policyFrame = 0;
+function schedulePolicy() {
+  cancelAnimationFrame(policyFrame);
+  policyFrame = requestAnimationFrame(() => {
+    rebuildDecisions();
+    policyOrRoundChanged();
+  });
+}
+
+els.presetGroup.addEventListener('click', (event) => {
+  const button = event.target.closest('button');
+  if (!button) return;
+  const p = POLICIES[button.dataset.preset];
+  state.weights = [...p.weights];
+  state.caps = [...p.caps];
+  schedulePolicy();
+});
+els.layerControls.addEventListener('input', (event) => {
+  const input = event.target;
+  if (input.type !== 'range') return;
+  const k = Number(input.dataset.layer);
+  if (input.dataset.kind === 'weight') state.weights[k] = Math.round(Number(input.value) * 100) / 100;
+  else state.caps[k] = Number(input.value);
+  schedulePolicy();
+});
+els.countSeg.addEventListener('click', (event) => {
+  const button = event.target.closest('button');
+  if (!button) return;
+  loadPool(POOLS.find((p) => String(p.n) === button.dataset.n));
+});
+els.shuffleBtn.addEventListener('click', () => {
+  let seed;
+  do { seed = 1 + Math.floor(Math.random() * 99999); } while (seed === state.seed);
+  const pool = POOLS.find((p) => p.n === state.n);
+  loadPool({ n: state.n, cols: state.cols, seed, kind: pool && pool.seed === seed ? pool.kind : 'random' });
+});
+els.volInput.addEventListener('input', () => {
+  state.volatility = Number(els.volInput.value);
+  rebuildRounds();
+  rebuildDecisions();
+  policyOrRoundChanged({ heights: true });
+});
+els.roundStrip.addEventListener('click', (event) => {
+  const button = event.target.closest('button');
+  if (!button) return;
+  stopPlay();
+  goToRound(Number(button.dataset.round));
+});
+function goToRound(r) {
+  state.round = r;
+  policyOrRoundChanged({ heights: true });
+}
+let playTimer = 0;
+function renderPlayButton() {
+  const on = els.playBtn.getAttribute('aria-pressed') === 'true';
+  els.playBtn.setAttribute('aria-label', on ? t('pause') : t('play'));
+  els.playBtn.title = els.playBtn.getAttribute('aria-label');
+  els.playBtn.querySelector('.i-play').style.display = on ? 'none' : '';
+  els.playBtn.querySelector('.i-pause').style.display = on ? '' : 'none';
+}
+function stopPlay() {
+  clearInterval(playTimer);
+  playTimer = 0;
+  els.playBtn.setAttribute('aria-pressed', 'false');
+  renderPlayButton();
+}
+els.playBtn.addEventListener('click', () => {
+  if (playTimer) { stopPlay(); return; }
+  els.playBtn.setAttribute('aria-pressed', 'true');
+  renderPlayButton();
+  if (state.round >= ROUND_COUNT - 1) goToRound(0);
+  playTimer = setInterval(() => {
+    if (state.round >= ROUND_COUNT - 1) { stopPlay(); return; }
+    goToRound(state.round + 1);
+  }, 1100);
+});
+els.langSeg.addEventListener('click', (event) => {
+  const button = event.target.closest('button');
+  if (!button || button.dataset.lang === lang) return;
+  lang = button.dataset.lang;
+  storage.set('wu-lang', lang);
+  renderStatic();
+  renderAll();
+  scene3d?.refreshText();
+});
+els.themeBtn.addEventListener('click', () => applyTheme(theme === 'dark' ? 'light' : 'dark', true));
+els.reasonClear.addEventListener('click', () => setSelected(-1));
+els.copyBtn.addEventListener('click', async () => {
+  const text = els.pyCmd.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents(els.pyCmd);
+    const selection = getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.execCommand('copy');
+    selection.removeAllRanges();
+  }
+  els.copyBtn.textContent = t('copied');
+  clearTimeout(els.copyBtn._timer);
+  els.copyBtn._timer = setTimeout(() => { els.copyBtn.textContent = t('copy'); }, 1600);
+});
+els.tabs.addEventListener('click', (event) => {
+  const button = event.target.closest('button');
+  if (button) setTab(button.dataset.tab);
+});
+function setTab(name) {
+  state.tab = name;
+  els.tabs.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
+  document.querySelectorAll('.sheet > .panel').forEach((p) => p.classList.toggle('is-active', p.dataset.tab === name));
+  if (compact.matches) scene3d?.layoutChanged();
+}
+// decision plane hover and selection
+els.planeSvg.addEventListener('pointerover', (event) => {
+  const g = event.target.closest('.pt');
+  if (!g) return;
+  setHover(Number(g.dataset.id), 'plane');
+  const box = g.getBoundingClientRect();
+  positionTooltip(box.left + box.width / 2, box.top + box.height / 2);
+});
+els.planeSvg.addEventListener('pointerleave', () => setHover(-1, 'plane'));
+els.planeSvg.addEventListener('click', (event) => {
+  const g = event.target.closest('.pt');
+  if (!g) return;
+  const id = Number(g.dataset.id);
+  setSelected(state.selected === id ? -1 : id);
+});
+
+// ---------- first paint ----------
+document.documentElement.dataset.theme = theme;
+setTab('analysis');
+rebuildWorld();
+rebuildRounds();
+rebuildDecisions();
+lastFetch = current().fetch;
+buildPlaneNodes();
+renderStatic();
+renderAll();
+
+// ===================================================================
+// 3D scene
+// ===================================================================
+
+const SCENE_THEMES = {
+  light: {
+    fetch: '#d21f45', pass: '#cc9f1a', other: '#30a08c', blocked: '#8e98a2',
+    capA: '#26313c', capB: '#b3bcc4', capSheet: '#2b3846', capSheetOpacity: 0.12, capEdge: '#2b3846',
+    bg: ['#f2f5f8', '#e4e9ee', '#b7c3cf'],
+    deep: '#283e55', deepAmount: 0.36,
+    plate: '#f4f8fb', attenuation: '#d3e3ee', plateRough: 0.2, floor: '#eef4f9', floorOpacity: 0.26,
+    shadow: 0.2, sheetOpacity: 0.1,
+    hemiSky: '#ffffff', hemiGround: '#3f5469', hemi: 0.62,
+    key: 3.1, keyColor: '#fffaf3', under: 0.55, underColor: '#c3d5f5', env: 0.42,
+    lines: '#16202a', linesOpacity: 0.05, edge: '#ffffff', edgeOpacity: 0.9, trail: '#d21f45', select: '#16202a'
+  },
+  dark: {
+    fetch: '#ef4f6c', pass: '#b5891a', other: '#0f9a80', blocked: '#5f6b77',
+    capA: '#0e141a', capB: '#7d8994', capSheet: '#c3d1de', capSheetOpacity: 0.1, capEdge: '#c3d1de',
+    bg: ['#202b39', '#151d27', '#070b10'],
+    deep: '#03070c', deepAmount: 0.45,
+    plate: '#8ea3b5', attenuation: '#567186', plateRough: 0.24, floor: '#9fb3c4', floorOpacity: 0.16,
+    shadow: 0.34, sheetOpacity: 0.13,
+    hemiSky: '#c7d4e1', hemiGround: '#0b1522', hemi: 0.52,
+    key: 3.0, keyColor: '#fff6ec', under: 0.45, underColor: '#7f9fd8', env: 0.34,
+    lines: '#e6ecf1', linesOpacity: 0.05, edge: '#c3d1de', edgeOpacity: 0.34, trail: '#ef4f6c', select: '#e6ecf1'
+  }
+};
+
+const VIEWS = {
+  angle: { theta: 0.66, phi: 1.14 },
+  side: { theta: 0.0, phi: Math.PI / 2 - 0.035 },
+  top: { theta: 0.0, phi: 0.0008 },
+  below: { theta: 0.66, phi: Math.PI - 1.0 }
+};
+
+const CELL = 1;
+const BAR_W = 0.74;
+const BAR_RADIUS = 0.075;
+const BAR_BASE_H = BAR_RADIUS * 2 + 0.02;
+const MIN_BAR_H = 0.035;
+const PLATE_T = 0.06;
+const FLOOR_T = 0.035;
+const PLATE_MARGIN = 0.48;
+const NO_CAP_Y = -1e5;
+
+const clamp01 = (v) => Math.min(1, Math.max(0, v));
+const easeOutCubic = (v) => 1 - Math.pow(1 - v, 3);
+const easeInOutCubic = (v) => (v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2);
+const smooth = (v) => v * v * (3 - 2 * v);
+
+async function initScene() {
+  let THREE, OrbitControls, RoomEnvironment, RoundedBoxGeometry;
+  try {
+    THREE = await import('three');
+    [{ OrbitControls }, { RoomEnvironment }, { RoundedBoxGeometry }] = await Promise.all([
+      import('three/addons/controls/OrbitControls.js'),
+      import('three/addons/environments/RoomEnvironment.js'),
+      import('three/addons/geometries/RoundedBoxGeometry.js')
+    ]);
+  } catch (error) {
+    console.error(error);
+    showSceneError();
+    return null;
+  }
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: els.canvas, antialias: true, powerPreference: 'high-performance' });
+  } catch (error) {
+    console.error(error);
+    showSceneError();
+    return null;
+  }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 1000);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
+
+  const bgCanvas = document.createElement('canvas');
+  bgCanvas.width = 8;
+  bgCanvas.height = 512;
+  const bgTexture = new THREE.CanvasTexture(bgCanvas);
+  bgTexture.colorSpace = THREE.SRGBColorSpace;
+  scene.background = bgTexture;
+
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x445566, 1);
+  scene.add(hemi);
+  const keyLight = new THREE.DirectionalLight(0xffffff, 2);
+  keyLight.castShadow = true;
+  keyLight.shadow.bias = -0.00035;
+  keyLight.shadow.normalBias = 0.025;
+  scene.add(keyLight, keyLight.target);
+  const underLight = new THREE.DirectionalLight(0xffffff, 0.5);
+  scene.add(underLight, underLight.target);
+
+  // ---------- materials ----------
+  const DISPLACE = /* glsl */`
+    float hBar = max(aHeight, 0.0);
+    float sideSign = position.y > 0.0 ? 1.0 : -1.0;
+    float squash = min(hBar / uBaseH, 1.0);
+    transformed.y = position.y * squash + sideSign * 0.5 * max(hBar - uBaseH, 0.0) + uDir * 0.5 * hBar + uBaseY;
+  `;
+  function makeBarMaterial(dir) {
+    const uniforms = {
+      uBaseH: { value: BAR_BASE_H }, uDir: { value: dir }, uBaseY: { value: 0 },
+      uDeep: { value: new THREE.Color() }, uDeepAmount: { value: 0.3 }, uDepthRange: { value: 2 },
+      uCapY: { value: NO_CAP_Y }, uCapA: { value: new THREE.Color() }, uCapB: { value: new THREE.Color() }, uMute: { value: 0 }
+    };
+    const material = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      roughness: dir > 0 ? 0.34 : 0.46,
+      metalness: 0,
+      clearcoat: dir > 0 ? 0.5 : 0.2,
+      clearcoatRoughness: 0.28,
+      specularIntensity: 0.7
+    });
+    material.userData.uniforms = uniforms;
+    material.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, uniforms);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>
+          attribute float aHeight;
+          attribute float aGlow;
+          uniform float uBaseH;
+          uniform float uDir;
+          uniform float uBaseY;
+          varying float vGlow;
+          varying float vBarY;
+          varying float vStripe;`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          ${DISPLACE}
+          vGlow = aGlow;
+          vBarY = transformed.y;
+          vStripe = position.x - position.z;`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+          uniform float uDir;
+          uniform float uBaseY;
+          uniform vec3 uDeep;
+          uniform float uDeepAmount;
+          uniform float uDepthRange;
+          uniform float uCapY;
+          uniform vec3 uCapA;
+          uniform vec3 uCapB;
+          uniform float uMute;
+          varying float vGlow;
+          varying float vBarY;
+          varying float vStripe;`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          float fromFloor = abs(vBarY - uBaseY);
+          diffuseColor.rgb *= mix(0.6, 1.0, smoothstep(0.0, 0.45, fromFloor));
+          float depthFade = uDir < 0.0 ? smoothstep(0.0, uDepthRange, uBaseY - vBarY) : 0.0;
+          diffuseColor.rgb = mix(diffuseColor.rgb, uDeep, depthFade * uDeepAmount);
+          float grey = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(grey) * 0.8 + 0.1, uMute * 0.8);
+          float overCap = (uDir < 0.0 && vBarY < uCapY) ? 1.0 : 0.0;
+          float stripe = step(0.5, fract((vBarY + vStripe) * 4.5));
+          diffuseColor.rgb = mix(diffuseColor.rgb, mix(uCapA, uCapB, stripe), overCap);`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+          totalEmissiveRadiance += diffuseColor.rgb * vGlow * (1.0 - uMute * 0.8);`);
+    };
+    material.customProgramCacheKey = () => 'lab-bar';
+    return material;
+  }
+  function makeDepthMaterial() {
+    const uniforms = { uBaseH: { value: BAR_BASE_H }, uDir: { value: 1 }, uBaseY: { value: 0 } };
+    const material = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+    material.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, uniforms);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>
+          attribute float aHeight;
+          uniform float uBaseH;
+          uniform float uDir;
+          uniform float uBaseY;`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          ${DISPLACE}`);
+    };
+    material.customProgramCacheKey = () => 'lab-bar-depth';
+    return material;
+  }
+  const upMaterial = makeBarMaterial(1);
+  const layerMaterials = [0, 1, 2].map(() => makeBarMaterial(-1));
+  const upDepth = makeDepthMaterial();
+
+  const glass = (thin) => new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, metalness: 0, roughness: 0.2, transmission: 1, thickness: thin ? 0.2 : 0.35, ior: 1.42,
+    clearcoat: 1, clearcoatRoughness: 0.08, attenuationDistance: 3, specularIntensity: 0.6
+  });
+  const plateMaterial = glass(false);
+  const floorMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, metalness: 0, roughness: 0.12, transparent: true, opacity: 0.2,
+    clearcoat: 1, clearcoatRoughness: 0.08, specularIntensity: 0.8, depthWrite: false
+  });
+  const catcherMaterial = new THREE.ShadowMaterial({ color: 0x0b1724, opacity: 0.2, transparent: true, depthWrite: false });
+  const linesMaterial = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.05, depthWrite: false });
+  const edgeMaterial = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.8, depthWrite: false });
+  const sheetMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+  const sheetEdgeMaterial = new THREE.LineBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+  const capSheetMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false });
+  const capEdgeMaterial = new THREE.LineDashedMaterial({ transparent: true, opacity: 0.75, dashSize: 0.18, gapSize: 0.12, depthWrite: false });
+  const ringMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+  const selectMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false });
+  const glowCanvas = document.createElement('canvas');
+  glowCanvas.width = glowCanvas.height = 128;
+  {
+    const g = glowCanvas.getContext('2d');
+    const gradient = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gradient.addColorStop(0, 'rgba(255,255,255,0.9)');
+    gradient.addColorStop(0.45, 'rgba(255,255,255,0.35)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gradient;
+    g.fillRect(0, 0, 128, 128);
+  }
+  const glowMaterial = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowCanvas), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+
+  // ---------- persistent scene objects ----------
+  const world3d = new THREE.Group();
+  scene.add(world3d);
+  const sheet = new THREE.Group();
+  const sheetPlane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), sheetMaterial);
+  const sheetEdge = new THREE.LineLoop(new THREE.BufferGeometry(), sheetEdgeMaterial);
+  sheet.add(sheetPlane, sheetEdge);
+  world3d.add(sheet);
+  const capSheets = [0, 1, 2].map(() => {
+    const g = new THREE.Group();
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), capSheetMaterial);
+    const edge = new THREE.LineLoop(new THREE.BufferGeometry(), capEdgeMaterial);
+    g.add(plane, edge);
+    g.userData = { plane, edge };
+    world3d.add(g);
+    return g;
+  });
+  const ringGeometry = new THREE.RingGeometry(0.6, 0.66, 72).rotateX(-Math.PI / 2);
+  const markers = new THREE.Group();
+  const fetchRings = [0, 1, 2, 3].map(() => { const m = new THREE.Mesh(ringGeometry, ringMaterial); markers.add(m); return m; });
+  const glowTop = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 2.3).rotateX(-Math.PI / 2), glowMaterial);
+  markers.add(glowTop);
+  world3d.add(markers);
+  const selectRing = new THREE.Mesh(new THREE.RingGeometry(0.58, 0.63, 64).rotateX(-Math.PI / 2), selectMaterial);
+  selectRing.visible = false;
+  world3d.add(selectRing);
+  const trailGroup = new THREE.Group();
+  world3d.add(trailGroup);
+
+  const layout = { cols: 1, rows: 1, k: 0.1, kr: 0.05, H: 4, Hr: 2, gap: 0.3, floors: [0, -2, -4], plateW: 2, plateD: 2, radius: 5, maxUp: 1, bottom: -6 };
+  const palette = { fetch: new THREE.Color(), pass: new THREE.Color(), other: new THREE.Color(), blocked: new THREE.Color() };
+  let themeName = theme;
+  let plateGroup = null;
+  let bars = null; // { up, layers: [mesh×3], n, pos }
+  let hoverId = -1, selectedId = -1;
+
+  // displayed values and transition targets
+  const disp = { up: null, layers: null, color: null, sheetY: 0 };
+  const from = { up: null, layers: null, color: null, sheetY: 0 };
+  const to = { up: null, layers: null, color: null, sheetY: 0 };
+  const anim = { start: 0, duration: 1, stagger: null, colorStart: 0, colorDuration: 1, running: false };
+  let pulseStart = -1e9;
+  let trailDraw = { start: -1e9 };
+
+  function computeLayout() {
+    const n = state.n;
+    layout.cols = Math.max(1, Math.min(state.cols, n));
+    layout.rows = Math.ceil(n / layout.cols);
+    const span = Math.max(layout.cols, layout.rows);
+    layout.H = Math.min(9.5, Math.max(3.0, 0.4 * span + 1.5));
+    layout.k = layout.H / 50;
+    layout.Hr = layout.H * 0.42;
+    layout.kr = layout.Hr / 50;
+    layout.gap = Math.max(0.3, 0.06 * layout.H);
+    layout.floors = [0, -(layout.Hr + layout.gap), -2 * (layout.Hr + layout.gap)];
+    layout.bottom = layout.floors[2] - layout.Hr;
+    layout.plateW = layout.cols * CELL + PLATE_MARGIN * 2;
+    layout.plateD = layout.rows * CELL + PLATE_MARGIN * 2;
+    layout.radius = Math.hypot(layout.plateW / 2, layout.plateD / 2, (layout.H - layout.bottom) / 2);
+  }
+  const heightUp = (v) => Math.max(MIN_BAR_H, v * layout.k);
+  const heightRisk = (v) => Math.max(MIN_BAR_H, v * layout.kr);
+
+  function rectLoop(hw, hd, y = 0) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute([-hw, y, -hd, hw, y, -hd, hw, y, hd, -hw, y, hd], 3));
+    return geometry;
+  }
+
+  function buildPlates() {
+    if (plateGroup) { world3d.remove(plateGroup); plateGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); }
+    plateGroup = new THREE.Group();
+    const { plateW, plateD, cols, rows } = layout;
+    const plate = new THREE.Mesh(new RoundedBoxGeometry(plateW, PLATE_T, plateD, 3, 0.028), plateMaterial);
+    const catcher = new THREE.Mesh(new THREE.PlaneGeometry(plateW, plateD).rotateX(-Math.PI / 2), catcherMaterial);
+    catcher.position.y = PLATE_T / 2 + 0.0015;
+    catcher.receiveShadow = true;
+    const pts = [];
+    const x0 = -cols * CELL / 2, z0 = -rows * CELL / 2, y = PLATE_T / 2 + 0.002;
+    for (let c = 0; c <= cols; c++) pts.push(x0 + c * CELL, y, z0, x0 + c * CELL, y, -z0);
+    for (let r = 0; r <= rows; r++) pts.push(x0, y, z0 + r * CELL, -x0, y, z0 + r * CELL);
+    const lineGeometry = new THREE.BufferGeometry();
+    lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    plateGroup.add(plate, catcher, new THREE.LineSegments(lineGeometry, linesMaterial), new THREE.LineLoop(rectLoop(plateW / 2 - 0.012, plateD / 2 - 0.012, PLATE_T / 2 + 0.001), edgeMaterial));
+    for (const fy of layout.floors.slice(1)) {
+      const floor = new THREE.Mesh(new RoundedBoxGeometry(plateW - 0.2, FLOOR_T, plateD - 0.2, 2, 0.016), floorMaterial);
+      floor.position.y = fy;
+      const edge = new THREE.LineLoop(rectLoop((plateW - 0.2) / 2 - 0.01, (plateD - 0.2) / 2 - 0.01, fy + FLOOR_T / 2 + 0.001), edgeMaterial);
+      plateGroup.add(floor, edge);
+    }
+    world3d.add(plateGroup);
+
+    sheetPlane.scale.set(plateW - 0.16, 1, plateD - 0.16);
+    sheetEdge.geometry.dispose();
+    sheetEdge.geometry = rectLoop((plateW - 0.16) / 2, (plateD - 0.16) / 2);
+    capSheets.forEach((g) => {
+      g.userData.plane.scale.set(plateW - 0.3, 1, plateD - 0.3);
+      g.userData.edge.geometry.dispose();
+      g.userData.edge.geometry = rectLoop((plateW - 0.3) / 2, (plateD - 0.3) / 2);
+      g.userData.edge.computeLineDistances();
+    });
+
+    const R = layout.radius;
+    keyLight.position.copy(new THREE.Vector3(-0.5, 1.25, 0.35).normalize()).multiplyScalar(R * 2.4);
+    const cam = keyLight.shadow.camera;
+    cam.left = -R * 1.1; cam.right = R * 1.1; cam.top = R * 1.1; cam.bottom = -R * 1.1;
+    cam.near = 0.1; cam.far = R * 5;
+    cam.updateProjectionMatrix();
+    const mapSize = layout.cols > 12 ? 4096 : 2048;
+    keyLight.shadow.mapSize.set(mapSize, mapSize);
+    if (keyLight.shadow.map) { keyLight.shadow.map.dispose(); keyLight.shadow.map = null; }
+    underLight.position.set(0.45, -1, -0.3).normalize().multiplyScalar(R * 2);
+    upMaterial.userData.uniforms.uDepthRange.value = layout.H;
+    layerMaterials.forEach((m, k) => {
+      m.userData.uniforms.uBaseY.value = layout.floors[k] - (k === 0 ? 0 : FLOOR_T / 2);
+      m.userData.uniforms.uDepthRange.value = layout.Hr;
+    });
+  }
+
+  function buildBars() {
+    if (bars) {
+      world3d.remove(bars.up, ...bars.layers);
+      [bars.up, ...bars.layers].forEach((m) => { m.geometry.dispose(); m.dispose(); });
+    }
+    const n = state.n;
+    const base = new RoundedBoxGeometry(BAR_W, BAR_BASE_H, BAR_W, n > 150 ? 2 : 3, BAR_RADIUS);
+    const make = (geometry, material, shadow) => {
+      geometry.setAttribute('aHeight', new THREE.InstancedBufferAttribute(new Float32Array(n), 1));
+      geometry.setAttribute('aGlow', new THREE.InstancedBufferAttribute(new Float32Array(n), 1));
+      const mesh = new THREE.InstancedMesh(geometry, material, n);
+      mesh.frustumCulled = false;
+      mesh.castShadow = shadow;
+      mesh.receiveShadow = shadow;
+      if (shadow) mesh.customDepthMaterial = upDepth;
+      return mesh;
+    };
+    const up = make(base, upMaterial, true);
+    const layers = layerMaterials.map((m) => make(base.clone(), m, false));
+    const pos = new Float32Array(n * 2);
+    const matrix = new THREE.Matrix4();
+    let maxDist = 0.0001;
+    for (let i = 0; i < n; i++) {
+      const col = i % layout.cols, row = Math.floor(i / layout.cols);
+      const x = (col - (layout.cols - 1) / 2) * CELL, z = ((layout.rows - 1) / 2 - row) * CELL;
+      pos[i * 2] = x; pos[i * 2 + 1] = z;
+      matrix.makeTranslation(x, 0, z);
+      up.setMatrixAt(i, matrix);
+      layers.forEach((m) => m.setMatrixAt(i, matrix));
+      maxDist = Math.max(maxDist, Math.hypot(x, z));
+    }
+    up.setColorAt(0, palette.other);
+    layers.forEach((m) => m.setColorAt(0, palette.other));
+    world3d.add(up, ...layers);
+    const stagger = new Float32Array(n);
+    for (let i = 0; i < n; i++) stagger[i] = 380 * (Math.hypot(pos[i * 2], pos[i * 2 + 1]) / maxDist);
+    bars = { up, layers, n, pos, stagger };
+    for (const o of [disp, from, to]) {
+      o.up = new Float32Array(n);
+      o.layers = [0, 1, 2].map(() => new Float32Array(n));
+      o.color = new Float32Array(n * 3);
+    }
+  }
+
+  // ---------- targets from the current decision ----------
+  const tmp = new THREE.Color();
+  function statusColor(st) { return st === 3 ? palette.fetch : st === 2 ? palette.pass : st === 1 ? palette.blocked : palette.other; }
+  function computeTargets() {
+    const d = current(), data = currentData();
+    for (let i = 0; i < state.n; i++) {
+      to.up[i] = heightUp(data.wanted[i]);
+      for (let k = 0; k < 3; k++) to.layers[k][i] = heightRisk(data.risks[k][i]);
+      const c = statusColor(d.status[i]);
+      to.color[i * 3] = c.r; to.color[i * 3 + 1] = c.g; to.color[i * 3 + 2] = c.b;
+    }
+    to.sheetY = d.threshold * layout.k;
+  }
+  function snapshotFrom() {
+    from.up.set(disp.up);
+    from.layers.forEach((a, k) => a.set(disp.layers[k]));
+    from.color.set(disp.color);
+    from.sheetY = disp.sheetY;
+  }
+  function startTransition({ duration = 420, stagger = false, colorDelay = 0, colorDuration = 260 } = {}) {
+    const now = performance.now();
+    const instant = reduceMotion.matches;
+    anim.start = now;
+    anim.duration = instant ? 1 : duration;
+    anim.stagger = !instant && stagger ? bars.stagger : null;
+    anim.colorStart = now + (instant ? 0 : colorDelay);
+    anim.colorDuration = instant ? 1 : colorDuration;
+    anim.running = true;
+    requestRender();
+  }
+
+  function applyFrame(now) {
+    if (!bars) return;
+    const n = state.n;
+    let done = true;
+    const colorP = smooth(clamp01((now - anim.colorStart) / anim.colorDuration));
+    if (colorP < 1) done = false;
+    const upA = bars.up.geometry.attributes.aHeight.array;
+    const layerA = bars.layers.map((m) => m.geometry.attributes.aHeight.array);
+    for (let i = 0; i < n; i++) {
+      const delay = anim.stagger ? anim.stagger[i] : 0;
+      const p = easeOutCubic(clamp01((now - anim.start - delay) / anim.duration));
+      if (p < 1) done = false;
+      disp.up[i] = from.up[i] + (to.up[i] - from.up[i]) * p;
+      upA[i] = disp.up[i];
+      for (let k = 0; k < 3; k++) {
+        disp.layers[k][i] = from.layers[k][i] + (to.layers[k][i] - from.layers[k][i]) * p;
+        layerA[k][i] = disp.layers[k][i];
+      }
+      for (let c = 0; c < 3; c++) disp.color[i * 3 + c] = from.color[i * 3 + c] + (to.color[i * 3 + c] - from.color[i * 3 + c]) * colorP;
+      tmp.setRGB(disp.color[i * 3], disp.color[i * 3 + 1], disp.color[i * 3 + 2]);
+      bars.up.setColorAt(i, tmp);
+      bars.layers.forEach((m) => m.setColorAt(i, tmp));
+    }
+    const ps = easeOutCubic(clamp01((now - anim.start) / anim.duration));
+    disp.sheetY = from.sheetY + (to.sheetY - from.sheetY) * ps;
+    [bars.up, ...bars.layers].forEach((m) => {
+      m.geometry.attributes.aHeight.needsUpdate = true;
+      m.instanceColor.needsUpdate = true;
+    });
+    applyGlow(now);
+    applyOverlays(now);
+    if (done && now - pulseStart > 1000 && now - trailDraw.start > 700) anim.running = false;
+  }
+
+  function applyGlow(now) {
+    const d = current();
+    const pulse = Math.sin(Math.PI * clamp01((now - pulseStart) / 900)) * 0.5;
+    const upG = bars.up.geometry.attributes.aGlow.array;
+    const layerG = bars.layers.map((m) => m.geometry.attributes.aGlow.array);
+    for (let i = 0; i < state.n; i++) {
+      const st = d.status[i];
+      let glow = st === 3 ? 0.16 + pulse : st === 2 ? 0.03 : 0;
+      if (i === hoverId) glow += 0.22;
+      if (i === selectedId) glow += 0.14;
+      upG[i] = glow;
+      for (let k = 0; k < 3; k++) layerG[k][i] = glow * 0.8;
+    }
+    [bars.up, ...bars.layers].forEach((m) => { m.geometry.attributes.aGlow.needsUpdate = true; });
+  }
+
+  function applyOverlays(now) {
+    const d = current();
+    const th = SCENE_THEMES[themeName];
+    sheet.position.y = disp.sheetY;
+    sheet.visible = true;
+    sheetMaterial.opacity = th.sheetOpacity * sheetFade;
+    sheetEdgeMaterial.opacity = 0.75;
+    layerMaterials.forEach((m, k) => {
+      const capped = layerCapped(k);
+      const capY = layout.floors[k] - (k === 0 ? 0 : FLOOR_T / 2) - state.caps[k] * layout.kr;
+      m.userData.uniforms.uCapY.value = capped ? capY : NO_CAP_Y;
+      m.userData.uniforms.uMute.value = (!layerCounts(k) && !capped) ? 1 : 0;
+      capSheets[k].visible = capped;
+      capSheets[k].position.y = capY;
+    });
+    if (d.fetch >= 0) {
+      const fx = bars.pos[d.fetch * 2], fz = bars.pos[d.fetch * 2 + 1];
+      markers.visible = true;
+      markers.position.set(fx, 0, fz);
+      const ys = [PLATE_T / 2 + 0.004, -(PLATE_T / 2 + 0.004), layout.floors[1] + FLOOR_T / 2 + 0.004, layout.floors[2] + FLOOR_T / 2 + 0.004];
+      fetchRings.forEach((m, j) => { m.position.y = ys[j]; });
+      const ringIn = easeOutCubic(clamp01((now - pulseStart) / 420));
+      ringMaterial.opacity = 0.95 * (pulseStart < 0 ? 1 : ringIn);
+      fetchRings.forEach((m) => m.scale.setScalar(0.72 + 0.28 * (pulseStart < 0 ? 1 : ringIn)));
+      glowTop.position.y = PLATE_T / 2 + 0.003;
+      glowMaterial.opacity = (themeName === 'dark' ? 0.5 : 0.34) + Math.sin(Math.PI * clamp01((now - pulseStart) / 900)) * 0.3;
+    } else markers.visible = false;
+    if (selectedId >= 0 && selectedId !== d.fetch) {
+      selectRing.visible = true;
+      selectRing.position.set(bars.pos[selectedId * 2], PLATE_T / 2 + 0.005, bars.pos[selectedId * 2 + 1]);
+    } else selectRing.visible = false;
+    // trail draw-in for the newest arc
+    const p = easeOutCubic(clamp01((now - trailDraw.start) / 600));
+    const newest = trailGroup.children[trailGroup.children.length - 2];
+    if (newest && newest.geometry.index) newest.geometry.setDrawRange(0, Math.ceil(newest.geometry.index.count * p / 6) * 6);
+  }
+
+  // Arcs between the tops of the bars that were fetched before, so a policy
+  // change or a new round leaves a visible path of where the pick moved.
+  function rebuildTrail(animateNewest) {
+    trailGroup.children.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
+    trailGroup.clear();
+    const d = current();
+    const chain = [...trail, d.fetch].filter((id) => id >= 0);
+    const th = SCENE_THEMES[themeName];
+    const lift = 0.16;
+    for (let j = 0; j < chain.length - 1; j++) {
+      const a = chain[j], b = chain[j + 1];
+      if (a === b) continue;
+      const ax = bars.pos[a * 2], az = bars.pos[a * 2 + 1], bx = bars.pos[b * 2], bz = bars.pos[b * 2 + 1];
+      const ay = to.up[a] + lift, by = to.up[b] + lift;
+      const dist = Math.hypot(bx - ax, bz - az);
+      const peak = Math.max(ay, by) + 0.5 + dist * 0.2;
+      const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(ax, ay, az), new THREE.Vector3((ax + bx) / 2, peak, (az + bz) / 2), new THREE.Vector3(bx, by, bz));
+      const age = chain.length - 2 - j;
+      const material = new THREE.MeshBasicMaterial({ color: th.trail, transparent: true, opacity: Math.max(0.22, 0.9 - age * 0.2), depthWrite: false });
+      trailGroup.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 48, 0.04, 8, false), material));
+      // a small cap on the earlier fetch, so the start of each arc reads as a past pick
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), new THREE.MeshBasicMaterial({ color: th.trail, transparent: true, opacity: material.opacity, depthWrite: false }));
+      dot.position.set(ax, ay, az);
+      trailGroup.add(dot);
+    }
+    if (animateNewest) trailDraw.start = performance.now(); else trailDraw.start = -1e9;
+  }
+
+  // ---------- labels ----------
+  const projected = new THREE.Vector3();
+  let tagArea = { x0: 0, x1: window.innerWidth, y0: 0, y1: window.innerHeight };
+  function placeTag(el, x, y, z, show, anchor, centerNdcX) {
+    projected.set(x, y, z).project(camera);
+    if (centerNdcX !== undefined) projected.x = centerNdcX;
+    const visible = show && projected.z < 1 && Math.abs(projected.x) < 1.15 && Math.abs(projected.y) < 1.15;
+    el.classList.toggle('is-shown', visible);
+    if (!visible) return null;
+    const w = window.innerWidth, h = window.innerHeight;
+    const sx = (projected.x * 0.5 + 0.5) * w, sy = (-projected.y * 0.5 + 0.5) * h;
+    const ew = el.offsetWidth, eh = el.offsetHeight;
+    const a = tagArea;
+    if (sy < a.y0 - 4 || sy > a.y1 + 4) { el.classList.remove('is-shown'); return null; }
+    let left, top;
+    if (anchor === 'corner') { left = sx - ew - 10; top = sy - eh / 2; }
+    else { left = sx - ew / 2; top = sy - eh - 8; }
+    left = Math.min(Math.max(a.x0, left), a.x1 - ew);
+    top = Math.min(Math.max(a.y0, top), a.y1 - eh);
+    el.style.transform = `translate(${left.toFixed(1)}px, ${top.toFixed(1)}px)`;
+    return { left, top, right: left + ew, bottom: top + eh };
+  }
+  function updateTagArea() {
+    const areas = freeAreas();
+    const a = areas[0] || { x0: 0, x1: window.innerWidth, y0: 0, y1: window.innerHeight };
+    tagArea = { x0: a.x0 + 2, x1: a.x1 - 2, y0: Math.max(6, a.y0), y1: a.y1 };
+  }
+  const overlaps = (a, b) => a && b && a.left < b.right + 4 && b.left < a.right + 4 && a.top < b.bottom + 4 && b.top < a.bottom + 4;
+  function leftmostCorner(hw, hd, y) {
+    let best = [-hw, hd], left = Infinity;
+    for (const c of [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]]) {
+      projected.set(c[0], y, c[1]).project(camera);
+      if (projected.x < left) { left = projected.x; best = c; }
+    }
+    return best;
+  }
+  function updateTags() {
+    if (!bars) return;
+    updateTagArea();
+    const d = current();
+    const boxes = [];
+    if (d.fetch >= 0) {
+      const fx = bars.pos[d.fetch * 2], fz = bars.pos[d.fetch * 2 + 1];
+      const topY = disp.up[d.fetch] + 0.02, half = BAR_W / 2;
+      let ax = fx, az = fz, high = -Infinity, sumX = 0;
+      for (const [cx, cz] of [[fx - half, fz - half], [fx + half, fz - half], [fx + half, fz + half], [fx - half, fz + half]]) {
+        projected.set(cx, topY, cz).project(camera);
+        sumX += projected.x;
+        if (projected.y > high) { high = projected.y; ax = cx; az = cz; }
+      }
+      boxes.push(placeTag(els.tagFetch, ax, topY, az, true, 'above', sumX / 4));
+    } else placeTag(els.tagFetch, 0, 0, 0, false);
+    const tops = activeView !== 'top';
+    const [tx, tz] = leftmostCorner((layout.plateW - 0.16) / 2, (layout.plateD - 0.16) / 2, disp.sheetY);
+    const thrBox = placeTag(els.tagThr, tx, disp.sheetY, tz, tops, 'corner');
+    if (boxes.some((b) => overlaps(b, thrBox))) els.tagThr.classList.remove('is-shown'); else boxes.push(thrBox);
+    const roomy = tagArea.y1 - tagArea.y0 > 300;
+    for (let k = 0; k < 3; k++) {
+      if (!roomy) { els.tagLayers[k].classList.remove('is-shown'); continue; }
+      const y = layout.floors[k] - (k === 0 ? PLATE_T / 2 : FLOOR_T / 2);
+      const [lx, lz] = leftmostCorner(layout.plateW / 2 - 0.1, layout.plateD / 2 - 0.1, y);
+      const box = placeTag(els.tagLayers[k], lx, y, lz, tops, 'corner');
+      if (boxes.some((b) => overlaps(b, box))) els.tagLayers[k].classList.remove('is-shown'); else boxes.push(box);
+    }
+  }
+  function refreshText() {
+    const d = current();
+    if (d.fetch >= 0) els.tagFetch.lastElementChild.textContent = t('tagFetch', { id: d.fetch });
+    els.tagThr.lastElementChild.textContent = t('tagThr', { t: d.threshold.toFixed(2) });
+    for (let k = 0; k < 3; k++) {
+      const counted = layerCounts(k), capped = layerCapped(k);
+      const vars = { layer: layerShort(k), w: fmtWeight(state.weights[k]), c: state.caps[k] };
+      els.tagLayers[k].lastElementChild.textContent = counted && capped ? t('tagLayerCap', vars) : counted ? t('tagLayer', vars) : capped ? t('tagLayerCapOnly', vars) : t('tagLayerIgnored', vars);
+      els.tagLayers[k].classList.toggle('is-muted', !counted && !capped);
+    }
+    if (state.hover >= 0) renderTooltip(state.hover);
+    requestRender();
+  }
+
+  // ---------- camera ----------
+  const controls = new OrbitControls(camera, els.canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.085;
+  controls.rotateSpeed = 0.75;
+  controls.zoomSpeed = 0.9;
+  controls.minPolarAngle = 0.0005;
+  controls.maxPolarAngle = Math.PI - 0.0005;
+  let activeView = 'angle';
+  let tween = null;
+  const spherical = new THREE.Spherical();
+  const viewOffset = { x: 0, y: 0 };
+
+  function freeAreas() {
+    const w = window.innerWidth, h = window.innerHeight;
+    if (compact.matches) {
+      const intro = document.querySelector('.intro').getBoundingClientRect();
+      const sheetTop = document.getElementById('sheet').getBoundingClientRect().top;
+      return [{ x0: 6, x1: w - 6, y0: intro.bottom + 8, y1: Math.max(intro.bottom + 140, sheetTop - 8) }];
+    }
+    const left = document.getElementById('policyPanel').getBoundingClientRect();
+    const right = document.getElementById('analysisPanel').getBoundingClientRect();
+    const bottom = document.getElementById('roundsPanel').getBoundingClientRect();
+    return [{ x0: left.right + 20, x1: right.left - 20, y0: 18, y1: bottom.top - 14 }];
+  }
+  const probe = new THREE.PerspectiveCamera();
+  const corner = new THREE.Vector3();
+  const lookDir = new THREE.Vector3();
+  function modelCorners() {
+    const hw = layout.plateW / 2, hd = layout.plateD / 2;
+    const top = layout.maxUp + 0.9, bottom = layout.bottom - 0.3;
+    const points = [];
+    for (const x of [-hw, hw]) for (const y of [bottom, top]) for (const z of [-hd, hd]) points.push(new THREE.Vector3(x, y, z));
+    return points;
+  }
+  function solveFrame(theta, phi) {
+    const w = window.innerWidth, h = window.innerHeight;
+    probe.fov = camera.fov; probe.aspect = w / h; probe.near = 0.1; probe.far = 5000; probe.updateProjectionMatrix();
+    lookDir.setFromSphericalCoords(1, phi, theta);
+    const points = modelCorners();
+    const measure = (distance) => {
+      probe.position.copy(lookDir).multiplyScalar(distance);
+      probe.lookAt(0, 0, 0);
+      probe.updateMatrixWorld(true);
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, clipped = false;
+      for (const p of points) {
+        corner.copy(p).project(probe);
+        if (corner.z > 1 || corner.z < -1) clipped = true;
+        const px = (corner.x + 1) / 2 * w, py = (1 - corner.y) / 2 * h;
+        minX = Math.min(minX, px); maxX = Math.max(maxX, px); minY = Math.min(minY, py); maxY = Math.max(maxY, py);
+      }
+      return { minX, maxX, minY, maxY, clipped };
+    };
+    let best = null;
+    const areas = freeAreas().filter((a) => a.x1 - a.x0 > 120 && a.y1 - a.y0 > 120);
+    if (!areas.length) areas.push({ x0: 0, x1: w, y0: 0, y1: h });
+    for (const area of areas) {
+      const fitW = area.x1 - area.x0, fitH = area.y1 - area.y0;
+      let lo = 0.5, hi = 2000;
+      for (let i = 0; i < 42; i++) {
+        const mid = (lo + hi) / 2;
+        const b = measure(mid);
+        if (!b.clipped && b.maxX - b.minX <= fitW && b.maxY - b.minY <= fitH) hi = mid; else lo = mid;
+      }
+      if (best && best.radius <= hi) continue;
+      const b = measure(hi);
+      best = { radius: hi, x: (b.minX + b.maxX) / 2 - (area.x0 + area.x1) / 2, y: (b.minY + b.maxY) / 2 - (area.y0 + area.y1) / 2 };
+    }
+    return best;
+  }
+  function applyViewOffset() {
+    const w = window.innerWidth, h = window.innerHeight;
+    camera.setViewOffset(w, h, viewOffset.x, viewOffset.y, w, h);
+    camera.updateProjectionMatrix();
+  }
+  function startTween(theta, phi, frame, duration) {
+    spherical.setFromVector3(camera.position.clone().sub(controls.target));
+    const fromTheta = spherical.theta;
+    const delta = Math.atan2(Math.sin(theta - fromTheta), Math.cos(theta - fromTheta));
+    const instant = reduceMotion.matches || duration <= 0;
+    tween = {
+      start: performance.now(), duration: instant ? 1 : duration,
+      from: { theta: fromTheta, phi: spherical.phi, radius: spherical.radius, target: controls.target.clone(), x: viewOffset.x, y: viewOffset.y },
+      to: { theta: fromTheta + delta, phi, radius: frame.radius, target: new THREE.Vector3(0, 0, 0), x: frame.x, y: frame.y }
+    };
+    if (instant) stepTween(tween.start + 1);
+    requestRender();
+  }
+  function stepTween(now) {
+    const p = clamp01((now - tween.start) / tween.duration);
+    const e = easeInOutCubic(p);
+    const lerp = (a, b) => a + (b - a) * e;
+    controls.target.lerpVectors(tween.from.target, tween.to.target, e);
+    spherical.set(lerp(tween.from.radius, tween.to.radius), lerp(tween.from.phi, tween.to.phi), lerp(tween.from.theta, tween.to.theta));
+    camera.position.setFromSpherical(spherical).add(controls.target);
+    camera.lookAt(controls.target);
+    viewOffset.x = lerp(tween.from.x, tween.to.x);
+    viewOffset.y = lerp(tween.from.y, tween.to.y);
+    applyViewOffset();
+    if (p >= 1) tween = null;
+  }
+  function goToView(name, duration = 950) {
+    activeView = name;
+    const v = VIEWS[name];
+    startTween(v.theta, v.phi, solveFrame(v.theta, v.phi), duration);
+  }
+  function reframe(duration) {
+    if (activeView) { goToView(activeView, duration); return; }
+    spherical.setFromVector3(camera.position.clone().sub(controls.target));
+    startTween(spherical.theta, spherical.phi, solveFrame(spherical.theta, spherical.phi), duration);
+  }
+  controls.addEventListener('start', () => { tween = null; activeView = null; hideTooltip(); });
+  controls.addEventListener('change', requestRender);
+
+  // keep the fetched candidate in sight for the default angle
+  const visRay = new THREE.Ray(), visBox = new THREE.Box3(), visPoint = new THREE.Vector3(), visHit = new THREE.Vector3(), visCam = new THREE.Vector3(), visToward = new THREE.Vector3();
+  function chooseAngle() {
+    const d = current();
+    if (d.fetch < 0) return;
+    const f = d.fetch, fx = bars.pos[f * 2], fz = bars.pos[f * 2 + 1], hu = to.up[f];
+    const half = BAR_W / 2;
+    let best = 0.66, bestScore = -1;
+    for (const theta of [0.66, 0.66 + Math.PI / 2, 0.66 - Math.PI / 2, 0.66 + Math.PI]) {
+      lookDir.setFromSphericalCoords(1, VIEWS.angle.phi, theta);
+      visCam.copy(lookDir).multiplyScalar(layout.radius * 3.2);
+      visToward.set(lookDir.x, 0, lookDir.z).normalize().multiplyScalar(half - 0.02);
+      let score = 0;
+      for (const [px, py, pz, weight] of [[fx, hu * 0.98, fz, 1], [fx + visToward.x, hu * 0.75, fz + visToward.z, 1], [fx + visToward.x, hu * 0.45, fz + visToward.z, 0.8]]) {
+        visPoint.set(px, py, pz);
+        const distance = visCam.distanceTo(visPoint);
+        visRay.origin.copy(visCam);
+        visRay.direction.copy(visPoint).sub(visCam).normalize();
+        let blocked = false;
+        for (let i = 0; i < state.n && !blocked; i++) {
+          if (i === f) continue;
+          const x = bars.pos[i * 2], z = bars.pos[i * 2 + 1];
+          visBox.min.set(x - half, 0, z - half);
+          visBox.max.set(x + half, to.up[i], z + half);
+          if (visRay.intersectBox(visBox, visHit) && visHit.distanceTo(visCam) < distance - 0.05) blocked = true;
+        }
+        if (!blocked) score += weight;
+      }
+      if (score > bestScore + 1e-6) { bestScore = score; best = theta; }
+    }
+    VIEWS.angle.theta = best;
+    VIEWS.below.theta = best;
+  }
+
+  // ---------- picking ----------
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  const box = new THREE.Box3();
+  const hitPoint = new THREE.Vector3();
+  function pick(clientX, clientY) {
+    if (!bars) return -1;
+    pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+    raycaster.setFromCamera(pointer, camera);
+    const ray = raycaster.ray;
+    let best = -1, bestDistance = Infinity;
+    const half = BAR_W / 2;
+    const test = (i) => {
+      if (ray.intersectBox(box, hitPoint)) {
+        const dd = hitPoint.distanceToSquared(ray.origin);
+        if (dd < bestDistance) { bestDistance = dd; best = i; }
+      }
+    };
+    for (let i = 0; i < state.n; i++) {
+      const x = bars.pos[i * 2], z = bars.pos[i * 2 + 1];
+      box.min.set(x - half, 0, z - half);
+      box.max.set(x + half, Math.max(disp.up[i], 0.02), z + half);
+      test(i);
+      for (let k = 0; k < 3; k++) {
+        const top = layout.floors[k] - (k === 0 ? 0 : FLOOR_T / 2);
+        box.min.set(x - half, top - Math.max(disp.layers[k][i], 0.02), z - half);
+        box.max.set(x + half, top, z + half);
+        test(i);
+      }
+    }
+    return best;
+  }
+  let pointerScreen = { x: 0, y: 0 };
+  let pickQueued = false;
+  els.canvas.addEventListener('pointermove', (event) => {
+    if (event.pointerType !== 'mouse' || event.buttons) return;
+    pointerScreen = { x: event.clientX, y: event.clientY };
+    if (pickQueued) return;
+    pickQueued = true;
+    requestAnimationFrame(() => {
+      pickQueued = false;
+      const id = pick(pointerScreen.x, pointerScreen.y);
+      els.canvas.classList.toggle('is-hovering', id >= 0);
+      setHover(id, 'scene');
+      if (id >= 0) positionTooltip(pointerScreen.x, pointerScreen.y);
+    });
+  });
+  els.canvas.addEventListener('pointerleave', () => setHover(-1, 'scene'));
+  let downAt = null;
+  els.canvas.addEventListener('pointerdown', (event) => { downAt = { x: event.clientX, y: event.clientY, time: performance.now() }; });
+  els.canvas.addEventListener('pointerup', (event) => {
+    if (!downAt) return;
+    const moved = Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y);
+    const quick = moved < 6 && performance.now() - downAt.time < 450;
+    downAt = null;
+    if (!quick) return;
+    const id = pick(event.clientX, event.clientY);
+    if (event.pointerType !== 'mouse') {
+      setHover(id, 'scene');
+      if (id >= 0) positionTooltip(event.clientX, event.clientY);
+    }
+    setSelected(id >= 0 && id !== state.selected ? id : -1);
+  });
+
+  // ---------- render loop ----------
+  let dirty = true;
+  function requestRender() { dirty = true; }
+  let sheetFade = 1;
+  function updateSheetFade() {
+    const dd = camera.position.distanceTo(controls.target) || 1;
+    const elevation = Math.abs(camera.position.y - controls.target.y) / dd;
+    sheetFade = 1 - 0.7 * smooth(clamp01((elevation - 0.72) / 0.26));
+    sheetMaterial.opacity = SCENE_THEMES[themeName].sheetOpacity * sheetFade;
+  }
+  function resize() {
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    applyViewOffset();
+    requestRender();
+  }
+  let resizeTimer = 0;
+  window.addEventListener('resize', () => {
+    resize();
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => reframe(0), 80);
+  });
+  compact.addEventListener('change', () => setTimeout(() => reframe(0), 60));
+  function tick(now) {
+    requestAnimationFrame(tick);
+    let changed = false;
+    if (tween) { stepTween(now); changed = true; }
+    else if (controls.update()) changed = true;
+    if (anim.running) { applyFrame(now); changed = true; }
+    if (changed || dirty) {
+      dirty = false;
+      updateSheetFade();
+      renderer.render(scene, camera);
+      updateTags();
+    }
+  }
+
+  // ---------- theme ----------
+  function drawBackdrop(colors) {
+    const g = bgCanvas.getContext('2d');
+    const gradient = g.createLinearGradient(0, 0, 0, bgCanvas.height);
+    gradient.addColorStop(0, colors[0]);
+    gradient.addColorStop(0.52, colors[1]);
+    gradient.addColorStop(1, colors[2]);
+    g.fillStyle = gradient;
+    g.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+    bgTexture.needsUpdate = true;
+  }
+  function setTheme(name) {
+    themeName = name;
+    const th = SCENE_THEMES[name];
+    drawBackdrop(th.bg);
+    palette.fetch.set(th.fetch); palette.pass.set(th.pass); palette.other.set(th.other); palette.blocked.set(th.blocked);
+    hemi.color.set(th.hemiSky); hemi.groundColor.set(th.hemiGround); hemi.intensity = th.hemi;
+    keyLight.color.set(th.keyColor); keyLight.intensity = th.key;
+    underLight.color.set(th.underColor); underLight.intensity = th.under;
+    scene.environmentIntensity = th.env;
+    plateMaterial.color.set(th.plate); plateMaterial.attenuationColor.set(th.attenuation); plateMaterial.roughness = th.plateRough;
+    floorMaterial.color.set(th.floor); floorMaterial.opacity = th.floorOpacity;
+    catcherMaterial.opacity = th.shadow;
+    linesMaterial.color.set(th.lines); linesMaterial.opacity = th.linesOpacity;
+    edgeMaterial.color.set(th.edge); edgeMaterial.opacity = th.edgeOpacity;
+    sheetMaterial.color.set(th.pass); sheetEdgeMaterial.color.set(th.pass);
+    capSheetMaterial.color.set(th.capSheet); capSheetMaterial.opacity = th.capSheetOpacity; capEdgeMaterial.color.set(th.capEdge);
+    ringMaterial.color.set(th.fetch); glowMaterial.color.set(th.fetch); selectMaterial.color.set(th.select);
+    for (const m of [upMaterial, ...layerMaterials]) {
+      m.userData.uniforms.uDeep.value.set(th.deep);
+      m.userData.uniforms.uDeepAmount.value = th.deepAmount;
+      m.userData.uniforms.uCapA.value.set(th.capA);
+      m.userData.uniforms.uCapB.value.set(th.capB);
+    }
+    layerMaterials.forEach((m, k) => { m.userData.uniforms.uDeepAmount.value = th.deepAmount + 0.07 * k; });
+    if (bars) {
+      computeTargets();
+      disp.color.set(to.color);
+      from.color.set(to.color);
+      rebuildTrail(false);
+      anim.running = true;
+      anim.colorStart = 0;
+      anim.colorDuration = 1;
+    }
+    requestRender();
+  }
+
+  // ---------- public api ----------
+  function setWorld({ reframe: doReframe = false, intro = false } = {}) {
+    hoverId = -1; selectedId = -1;
+    computeLayout();
+    buildPlates();
+    buildBars();
+    computeTargets();
+    layout.maxUp = Math.max(...rounds.flatMap((r) => r.wanted)) * layout.k;
+    disp.up.fill(0); disp.layers.forEach((a) => a.fill(0));
+    for (let i = 0; i < state.n; i++) { disp.color[i * 3] = palette.other.r; disp.color[i * 3 + 1] = palette.other.g; disp.color[i * 3 + 2] = palette.other.b; }
+    disp.sheetY = 0;
+    snapshotFrom();
+    trail = [];
+    rebuildTrail(false);
+    pulseStart = performance.now() + (reduceMotion.matches ? -2000 : 750);
+    startTransition({ duration: 640, stagger: true, colorDelay: 820, colorDuration: 420 });
+    chooseAngle();
+    refreshText();
+    if (intro) {
+      const v = VIEWS.angle;
+      const frame = solveFrame(v.theta, v.phi);
+      viewOffset.x = frame.x; viewOffset.y = frame.y;
+      applyViewOffset();
+      const still = reduceMotion.matches;
+      spherical.set(frame.radius * (still ? 1 : 1.25), v.phi + (still ? 0 : 0.1), v.theta - (still ? 0 : 0.55));
+      camera.position.setFromSpherical(spherical);
+      camera.lookAt(0, 0, 0);
+      activeView = 'angle';
+      startTween(v.theta, v.phi, frame, 2400);
+    } else if (doReframe) {
+      activeView = 'angle';
+      goToView('angle', 800);
+    }
+  }
+  function update({ heights = false, fetchChanged = false } = {}) {
+    if (!bars) return;
+    snapshotFrom();
+    computeTargets();
+    if (heights) layout.maxUp = Math.max(layout.maxUp, Math.max(...currentData().wanted) * layout.k);
+    if (fetchChanged) { pulseStart = performance.now(); rebuildTrail(true); }
+    else rebuildTrail(false);
+    startTransition({ duration: heights ? 520 : 1, colorDelay: 0, colorDuration: 280 });
+    refreshText();
+  }
+  function setHoverId(id) { hoverId = id; anim.running = true; requestRender(); }
+  function setSelectedId(id) { selectedId = id; anim.running = true; requestRender(); }
+
+  resize();
+  setTheme(themeName);
+  requestAnimationFrame(tick);
+  if (new URLSearchParams(location.search).has('debug')) {
+    window.__lab = { THREE, scene, camera, renderer, controls, layout, get bars() { return bars; }, requestRender, goToView };
+  }
+  function layoutChanged() { reframe(450); }
+  return { setWorld, update, setTheme, refreshText, setHover: setHoverId, setSelected: setSelectedId, goToView, layoutChanged };
+}
+
+function showSceneError() {
+  els.sceneError.textContent = t('sceneError');
+  els.sceneError.hidden = false;
+}
+
+scene3d = await initScene();
+if (scene3d) scene3d.setWorld({ intro: true });
+</script>
+</body>
+</html>
